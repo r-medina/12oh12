@@ -1,0 +1,371 @@
+/* ============================================
+   909 Clone + 303 Bass - Dark Mode Styles
+   ============================================ */
+
+:root {
+  /* Color Palette */
+  --bg-dark: #0d0d0d;
+  --bg-medium: #1a1a1a;
+  --bg-light: #2a2a2a;
+  --accent-orange: #ff6600;
+  --accent-green: #33ff33;
+  --accent-red: #ff3333;
+  --accent-cyan: #00ffff;
+  --text-primary: #ffffff;
+  --text-secondary: #888888;
+  
+  /* Step Colors */
+  --step-off: #333333;
+  --step-active: var(--accent-orange);
+  --step-current: rgba(255, 255, 255, 0.3);
+  
+  /* Sizing */
+  --step-size: 40px;
+  --gap: 8px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+}
+
+.container {
+  max-width: 1200px;
+  width: 100%;
+}
+
+h1 {
+  text-align: center;
+  font-size: 2.5rem;
+  color: var(--accent-orange);
+  margin-bottom: 30px;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  text-shadow: 0 0 10px rgba(255, 102, 0, 0.5);
+}
+
+/* ============================================
+   Controls Section
+   ============================================ */
+
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin-bottom: 30px;
+  padding: 20px;
+  background: var(--bg-medium);
+  border-radius: 12px;
+  flex-wrap: wrap;
+}
+
+.controls button {
+  padding: 15px 40px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+}
+
+.controls button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+}
+
+.controls button:active {
+  transform: scale(0.98);
+}
+
+.controls label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.controls input[type="range"] {
+  width: 120px;
+  cursor: pointer;
+}
+
+/* ============================================
+   Sequencer Grid
+   ============================================ */
+
+.sequencer-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.track-container {
+  background: var(--bg-medium);
+  border-radius: 12px;
+  padding: 15px;
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.track-container.bass-container {
+  background: linear-gradient(135deg, var(--bg-medium) 0%, #1a2a2a 100%);
+  border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.track-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 200px;
+}
+
+.track-controls label {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.track-controls input[type="range"] {
+  width: 80px;
+  cursor: pointer;
+}
+
+.mute-solo-row {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 5px;
+}
+
+.ms-btn {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--text-secondary);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.ms-btn:hover {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+}
+
+.ms-btn.active {
+  background: var(--accent-orange);
+  border-color: var(--accent-orange);
+  color: #000;
+}
+
+.knob-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ============================================
+   Track and Steps
+   ============================================ */
+
+.track {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  flex: 1;
+}
+
+.track-label {
+  width: 70px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: var(--accent-orange);
+}
+
+.step {
+  width: var(--step-size);
+  height: var(--step-size);
+  background: var(--step-off);
+  border: 2px solid #444;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.step:hover {
+  border-color: var(--accent-orange);
+  transform: scale(1.05);
+}
+
+.step.active {
+  background: var(--step-active);
+  border-color: var(--accent-orange);
+  box-shadow: 0 0 12px rgba(255, 102, 0, 0.6);
+}
+
+.step.current {
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.7), 0 0 15px rgba(255, 255, 255, 0.3);
+}
+
+.step.active.current {
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.7), 0 0 20px rgba(255, 102, 0, 0.8);
+}
+
+/* Group indicator - slightly different colors for beats 1-4, 5-8, 9-12, 13-16 */
+.step:nth-child(4n+1),
+.step:nth-child(4n+2),
+.step:nth-child(4n+3),
+.step:nth-child(4n+4) {
+  /* All the same, but can customize per beat group */
+}
+
+/* Highlight every 4th step (downbeats) */
+.step:nth-child(4n+1):not(.active) {
+  background: #3a3a3a;
+}
+
+/* ============================================
+   Bass 303 Per-Step Pitch
+   ============================================ */
+
+.bass-steps-container {
+  display: flex;
+  gap: var(--gap);
+}
+
+.bass-step-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.note-select {
+  width: var(--step-size);
+  padding: 2px;
+  font-size: 0.65rem;
+  background: var(--bg-light);
+  color: var(--text-primary);
+  border: 1px solid #444;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.note-select:hover {
+  border-color: var(--accent-cyan);
+}
+
+.note-select:focus {
+  outline: none;
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+}
+
+/* ============================================
+   Slider Styling
+   ============================================ */
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: var(--bg-light);
+  border-radius: 3px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--accent-orange);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--accent-orange);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+/* ============================================
+   Scrollbar Styling
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-light);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+
+/* ============================================
+   Responsive Adjustments
+   ============================================ */
+
+@media (max-width: 900px) {
+  .track-container {
+    flex-direction: column;
+  }
+  
+  .track-controls {
+    min-width: unset;
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  
+  .track {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .track-label {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 10px;
+  }
+  
+  .bass-steps-container {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
