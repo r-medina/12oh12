@@ -280,13 +280,13 @@ function App() {
         {/* Kick */}
         <div className="track-container">
           <div className="track-controls">
+            <div className="track-label">kick</div>
             <div className="mute-solo-row">
                 <button className={`ms-btn ${mutes.kick ? 'active' : ''}`} onClick={() => handleMute('kick')}>M</button>
                 <button className={`ms-btn ${solos.kick ? 'active' : ''}`} onClick={() => handleSolo('kick')}>S</button>
             </div>
           </div>
           <div className="track">
-            <div className="track-label">kick</div>
             <div className="track-main">
               <div className="knob-row">
                 <label>Vol: {volumes.kick}dB</label>
@@ -321,13 +321,13 @@ function App() {
         {/* Snare */}
         <div className="track-container">
           <div className="track-controls">
+            <div className="track-label">snare</div>
             <div className="mute-solo-row">
                 <button className={`ms-btn ${mutes.snare ? 'active' : ''}`} onClick={() => handleMute('snare')}>M</button>
                 <button className={`ms-btn ${solos.snare ? 'active' : ''}`} onClick={() => handleSolo('snare')}>S</button>
             </div>
           </div>
           <div className="track">
-            <div className="track-label">snare</div>
             <div className="track-main">
               <div className="knob-row">
                 <label>Vol: {volumes.snare}dB</label>
@@ -362,13 +362,13 @@ function App() {
         {/* HiHat */}
         <div className="track-container">
           <div className="track-controls">
+            <div className="track-label">hihat</div>
             <div className="mute-solo-row">
                 <button className={`ms-btn ${mutes.hihat ? 'active' : ''}`} onClick={() => handleMute('hihat')}>M</button>
                 <button className={`ms-btn ${solos.hihat ? 'active' : ''}`} onClick={() => handleSolo('hihat')}>S</button>
             </div>
           </div>
           <div className="track">
-            <div className="track-label">hihat</div>
             <div className="track-main">
               <div className="knob-row">
                 <label>Vol: {volumes.hihat}dB</label>
@@ -401,13 +401,13 @@ function App() {
         {/* Clap */}
         <div className="track-container">
           <div className="track-controls">
+            <div className="track-label">clap</div>
             <div className="mute-solo-row">
                 <button className={`ms-btn ${mutes.clap ? 'active' : ''}`} onClick={() => handleMute('clap')}>M</button>
                 <button className={`ms-btn ${solos.clap ? 'active' : ''}`} onClick={() => handleSolo('clap')}>S</button>
             </div>
           </div>
           <div className="track">
-            <div className="track-label">clap</div>
             <div className="track-main">
               <div className="knob-row">
                 <label>Vol: {volumes.clap}dB</label>
@@ -440,13 +440,13 @@ function App() {
         {/* Bass (303) */}
         <div className="track-container bass-container">
           <div className="track-controls">
+            <div className="track-label">303 Bass</div>
             <div className="mute-solo-row">
                 <button className={`ms-btn ${mutes.bass ? 'active' : ''}`} onClick={() => handleMute('bass')}>M</button>
                 <button className={`ms-btn ${solos.bass ? 'active' : ''}`} onClick={() => handleSolo('bass')}>S</button>
             </div>
           </div>
           <div className="track">
-            <div className="track-label">303 Bass</div>
             <div className="track-main">
               <div className="knob-row">
                 <label>Vol: {volumes.bass}dB</label>
@@ -457,6 +457,7 @@ function App() {
                 <input type="range" min="0" max="20" step="0.1" defaultValue="2" onChange={e => AudioEngine.setBassResonance(Number(e.target.value))} onWheel={handleSliderWheel} />
                 <label>Env Mod</label>
                 <input type="range" min="0" max="8" step="0.1" defaultValue="2" onChange={e => AudioEngine.setBassEnvMod(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <div className="break-row"></div>
                 <label>Decay</label>
                 <input type="range" min="0.1" max="2.0" step="0.1" defaultValue="0.2" onChange={e => AudioEngine.setBassDecay(Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
