@@ -314,6 +314,14 @@ h1 {
   flex: 1;
 }
 
+.track-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  justify-content: center;
+}
+
 .track-label {
   width: 60px;
   font-family: var(--font-mono);
