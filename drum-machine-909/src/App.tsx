@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { AudioEngine } from './audio/engine';
+import { Visualizer } from './components/Visualizer';
 import type { Instrument } from './types';
 
 // Initial Pattern: Basic House Beat
@@ -505,6 +506,8 @@ function App() {
         </div>
 
       </div>
+      
+      <Visualizer />
     </div>
   );
 }

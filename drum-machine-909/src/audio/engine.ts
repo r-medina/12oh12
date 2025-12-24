@@ -1,12 +1,18 @@
 import * as Tone from 'tone';
 import type { Instrument } from '../types';
 
+// -- Analyser & Master --
+const analyser = new Tone.Analyser('fft', 64);
+const masterVol = new Tone.Volume(0).connect(analyser);
+analyser.toDestination();
+
 // -- Volume Nodes --
-const kickVol = new Tone.Volume(0).toDestination();
-const snareVol = new Tone.Volume(0).toDestination();
-const hihatVol = new Tone.Volume(0).toDestination();
-const clapVol = new Tone.Volume(0).toDestination();
-const bassVol = new Tone.Volume(0).toDestination();
+// Connect individual channels to masterVol instead of Destination
+const kickVol = new Tone.Volume(0).connect(masterVol);
+const snareVol = new Tone.Volume(0).connect(masterVol);
+const hihatVol = new Tone.Volume(0).connect(masterVol);
+const clapVol = new Tone.Volume(0).connect(masterVol);
+const bassVol = new Tone.Volume(0).connect(masterVol);
 
 // -- 909-ish Synth Setup --
 const kick = new Tone.MembraneSynth({
@@ -250,5 +256,19 @@ export const AudioEngine = {
     if (inst === 'hihat') hihatVol.volume.value = val;
     if (inst === 'clap') clapVol.volume.value = val;
     if (inst === 'bass') bassVol.volume.value = val;
-  }
+  },
+
+  // Visualizer
+  getFrequencyData: () => {
+    if (!analyser) return new Uint8Array(0);
+    return analyser.getValue(); // Returns Float32Array for 'waveform' or 'fft' 
+    // BUT we used 'fft'. wait, Tone.Analyser.getValue() returns Float32Array of dB usually.
+    // Let's verify return type. Tone.Analyser types are a bit flexible. 
+    // For visualizer we often want accessible bytes or floats. 
+  },
+  
+  // Directly expose the analyser for advanced usage if needed, 
+  // or a helper method to fill a buffer to avoid GC if possible.
+  // Actually Tone.js getValue returns the buffer.
+  getAnalyser: () => analyser
 };

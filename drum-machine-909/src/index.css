@@ -492,3 +492,27 @@ input[type="range"]::-moz-range-thumb {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ============================================
+   Visualizer
+   ============================================ */
+
+.visualizer-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 10px;
+  padding: 8px;
+}
+
+.visualizer-canvas {
+  width: 100%;
+  max-width: 256px; 
+  height: 64px;
+  image-rendering: pixelated; /* Crucial for lofi look */
+  background: var(--bg-tertiary);
+  border: 1px solid var(--step-border);
+  border-radius: var(--radius-sm);
+  opacity: 0.9;
+}
+
