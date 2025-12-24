@@ -12,55 +12,76 @@ export function Visualizer() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Lofi resolution
-    const width = 64;
-    const height = 16; 
+    // Matrix configuration
+    const cols = 32; // Number of frequency bands
+    const rows = 8;  // Height resolution
+    const gap = 2;   // Gap between pixels
+    
+    // Calculate sizing based on matrix
+    // We want the pixels to be square. 
+    // Let's determine total width based on container, but for now fixed internal res is fine
+    // as we scale with CSS. 
+    // However, to make it crisp, we should probably set width/height to accommodate the grid exactly.
+    const pixelSize = 4;
+    const width = cols * (pixelSize + gap) + gap;
+    const height = rows * (pixelSize + gap) + gap;
+    
     canvas.width = width;
     canvas.height = height;
 
     const draw = () => {
-      // Get frequency data (Float32Array usually -Infinity to 0dB, or linear if using waveform)
-      // We used 'fft' in engine, default is dB
-      const values = AudioEngine.getFrequencyData(); // Float32Array
+      const values = AudioEngine.getFrequencyData();
+      
+      // Get theme colors
+      const style = getComputedStyle(document.documentElement);
+      const bgPrimary = style.getPropertyValue('--bg-tertiary').trim() || '#1e1e1e';
+      const accentColor = style.getPropertyValue('--accent-primary').trim() || '#ff5722';
+      const inactiveColor = style.getPropertyValue('--step-off').trim() || '#2a2a2a';
       
       // Clear
-      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-color') || '#000';
+      ctx.fillStyle = bgPrimary;
       ctx.fillRect(0, 0, width, height);
 
       if (values instanceof Float32Array || values instanceof Uint8Array) {
         const binCount = values.length;
-        // We want to map ~32 bars
-        const barWidth = 2; // 32 bars * 2px = 64px
-        const totalBars = width / barWidth;
+        // We only use the lower portion of the frequency spectrum usually, 
+        // but AudioEngine.getFrequencyData() usually returns a usable range if configured right.
         
-        ctx.fillStyle = '#ff5500'; // Will be overridden by CSS variable usually, but hardcode fallbacks or use CSS var in JS if needed. 
-        // Better: use the active color from theme.
-        const activeColor = getComputedStyle(document.documentElement).getPropertyValue('--active-color').trim() || '#ff0000';
-        ctx.fillStyle = activeColor;
-        
-        for (let i = 0; i < totalBars; i++) {
-          // Map bar index to frequency bin
-          // We have binCount bins (e.g. 32 or 64).
-          // If 64 bins, and 32 bars, step is 2.
-          const binIndex = Math.floor(i * (binCount / totalBars));
+        for (let c = 0; c < cols; c++) {
+          // Map column to frequency bin
+          // Logarithmic distribution usually looks better, but linear is ok for simple
+          const binIndex = Math.floor(c * (binCount / cols));
           const val = values[binIndex];
           
-          // val is in dB, usually -100 to 0
-          // Mapping to height 0-16
-          // range: -100 -> 0 height, -30 -> full height?
-          const minDb = -100;
-          const maxDb = -30;
-          
+          // Map dB to height
+          const minDb = -80;
+          const maxDb = -20;
           let normalized = (val - minDb) / (maxDb - minDb);
-          if (normalized < 0) normalized = 0;
-          if (normalized > 1) normalized = 1;
+          normalized = Math.max(0, Math.min(1, normalized));
           
-          const barHeight = Math.floor(normalized * height);
-          
-          if (barHeight > 0) {
-             // Draw pixelated bar
-             ctx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
+          // Calculate how many "pixels" are lit
+          const litPixels = Math.floor(normalized * rows);
+
+          for (let r = 0; r < rows; r++) {
+            // Draw from bottom up, so row 0 is bottom
+            const y = height - ((r + 1) * (pixelSize + gap));
+            const x = gap + c * (pixelSize + gap);
+            
+            if (r < litPixels) {
+              // Active pixel
+              ctx.fillStyle = accentColor;
+              ctx.shadowBlur = 4;
+              ctx.shadowColor = accentColor;
+            } else {
+              // Inactive pixel (matrix background)
+              ctx.fillStyle = inactiveColor;
+              ctx.shadowBlur = 0;
+            }
+            
+            ctx.fillRect(x, y, pixelSize, pixelSize);
           }
+           // Reset shadow for next column iteration (though we reset effectively by setting it per pixel)
+           ctx.shadowBlur = 0;
         }
       }
 
