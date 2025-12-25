@@ -178,3 +178,37 @@ Tone.js schedules audio in the future (`time` parameter).
 | Env Mod          | 0-8        | Envelope modulation depth on filter   |
 | Decay            | 0.1-2.0s   | Note and filter envelope decay time   |
 | Pitch (per-step) | C1-C4      | Individual note per step via dropdown |
+
+## 🎹 Pad Synth
+
+- **Type**: `Tone.PolySynth` with sine oscillator and lowpass filter
+- **Special Feature**: **Per-step note + chord voicing control** via dual dropdowns
+
+### Voicing Options
+
+| Voicing | Notes                |
+| ------- | -------------------- |
+| single  | Root only            |
+| octave  | Root + octave above  |
+| fifth   | Root + perfect fifth |
+| major   | Root + M3 + P5       |
+| minor   | Root + m3 + P5       |
+| sus2    | Root + M2 + P5       |
+| sus4    | Root + P4 + P5       |
+
+### Pad Controls
+
+| Control            | Range       | Description                         |
+| ------------------ | ----------- | ----------------------------------- |
+| Attack             | 0.01-1.0s   | Envelope attack time                |
+| Release            | 0.1-3.0s    | Envelope release time               |
+| Filter             | 100-8000 Hz | Lowpass filter cutoff               |
+| Note (per-step)    | C2-C5       | Root note per step via dropdown     |
+| Voicing (per-step) | (see above) | Chord voicing per step via dropdown |
+
+### Key Locations
+
+- **Pad Synth**: `src/audio/engine.ts` (Search for `Pad Synth`)
+- **Pad State**: `src/App.tsx` (Search for `padPitches`, `padVoicings`)
+- **Pad UI**: `src/App.tsx` (Search for `pad-container`)
+- **Pad Styles**: `src/index.css` (Search for `Pad Synth Styles`)

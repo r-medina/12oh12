@@ -11,27 +11,28 @@ const INITIAL_GRID: Record<Instrument, boolean[]> = {
   hihat: [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
   clap:  [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
   bass:  [false, false, true, false, false, true, false, false, false, true, false, false, true, false, false, true],
+  pad:   [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
   kick909: [], snare909: [], hihat909: [], clap909: [] // Unused placeholders
 };
 
 const INITIAL_MUTES: Record<Instrument, boolean> = { 
-  kick: false, snare: false, hihat: false, clap: false, bass: false,
+  kick: false, snare: false, hihat: false, clap: false, bass: false, pad: false,
   kick909: false, snare909: false, hihat909: false, clap909: false
 };
 const INITIAL_SOLOS: Record<Instrument, boolean> = { 
-  kick: false, snare: false, hihat: false, clap: false, bass: false,
+  kick: false, snare: false, hihat: false, clap: false, bass: false, pad: false,
   kick909: false, snare909: false, hihat909: false, clap909: false
 };
 const INITIAL_VOLUMES: Record<Instrument, number> = { 
-  kick: -12, snare: -12, hihat: -12, clap: -12, bass: -12,
+  kick: -12, snare: -12, hihat: -12, clap: -12, bass: -12, pad: -12,
   kick909: 0, snare909: 0, hihat909: 0, clap909: 0
 };
 const INITIAL_REVERB_SENDS: Record<Instrument, number> = {
-  kick: -60, snare: -60, hihat: -60, clap: -60, bass: -60,
+  kick: -60, snare: -60, hihat: -60, clap: -60, bass: -60, pad: -60,
   kick909: -60, snare909: -60, hihat909: -60, clap909: -60
 };
 const INITIAL_DELAY_SENDS: Record<Instrument, number> = {
-  kick: -60, snare: -60, hihat: -60, clap: -60, bass: -60,
+  kick: -60, snare: -60, hihat: -60, clap: -60, bass: -60, pad: -60,
   kick909: -60, snare909: -60, hihat909: -60, clap909: -60
 };
 
@@ -91,6 +92,8 @@ function App() {
         AudioEngine.setDelaySend(inst, delaySends[inst]);
     });
     AudioEngine.updateBassPitches(bassPitches);
+    AudioEngine.updatePadPitches(padPitches);
+    AudioEngine.updatePadVoicings(padVoicings);
 
     AudioEngine.onStep((step) => {
       setCurrentStep(step);
@@ -249,6 +252,34 @@ function App() {
     // So if deltaY > 0 (Up), we want +1.
     const delta = e.deltaY > 0 ? 1 : -1;
     handleBassPitchChange(stepIndex, current + delta);
+  };
+
+  /* Per-step Pad Pitches (MIDI notes) and Voicings */
+  const [padPitches, setPadPitches] = useState<number[]>(new Array(16).fill(48)); // Default C3 (48)
+  const [padVoicings, setPadVoicings] = useState<string[]>(new Array(16).fill('single'));
+
+  const PAD_VOICING_OPTIONS = ['single', 'octave', 'fifth', 'major', 'minor', 'sus2', 'sus4'];
+
+  const handlePadPitchChange = (stepIndex: number, val: number) => {
+    const clampedVal = Math.max(36, Math.min(72, val)); // C2 to C5
+    const newPitches = [...padPitches];
+    newPitches[stepIndex] = clampedVal;
+    setPadPitches(newPitches);
+    AudioEngine.updatePadPitches(newPitches);
+  };
+
+  const handlePadVoicingChange = (stepIndex: number, voicing: string) => {
+    const newVoicings = [...padVoicings];
+    newVoicings[stepIndex] = voicing;
+    setPadVoicings(newVoicings);
+    AudioEngine.updatePadVoicings(newVoicings);
+  };
+
+  const handlePadNoteWheel = (e: React.WheelEvent<HTMLSelectElement>, stepIndex: number) => {
+    e.preventDefault();
+    const current = padPitches[stepIndex];
+    const delta = e.deltaY > 0 ? 1 : -1;
+    handlePadPitchChange(stepIndex, current + delta);
   };
   
   return (
@@ -549,6 +580,88 @@ function App() {
                                 </option>
                               );
                             })}
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Pad Synth */}
+        <div className="track-container pad-container">
+          <div className="track-controls">
+            <div className="track-label">Pad</div>
+            <div className="track-utils-column">
+              <div className="mute-solo-row">
+                  <button className={`ms-btn ${mutes.pad ? 'active' : ''}`} onClick={() => handleMute('pad')}>M</button>
+                  <button className={`ms-btn ${solos.pad ? 'active' : ''}`} onClick={() => handleSolo('pad')}>S</button>
+              </div>
+              <div className="sends-row">
+                 <Knob label="REV" min={-60} max={0} value={reverbSends.pad} onChange={v => handleReverbSendChange('pad', v)} size={28} />
+                 <Knob label="DLY" min={-60} max={0} value={delaySends.pad} onChange={v => handleDelaySendChange('pad', v)} size={28} />
+              </div>
+            </div>
+          </div>
+          <div className="track">
+            <div className="track-main">
+              <div className="knob-row">
+                <label className="vol-label">Vol: {volumes.pad}dB</label>
+                <input type="range" min="-60" max="0" step="1" value={volumes.pad} onChange={e => handleVolumeChange('pad', Number(e.target.value))} onWheel={(e) => handleVolumeWheel(e, 'pad')} />
+                <label>Attack</label>
+                <input type="range" min="0.01" max="1.0" step="0.01" defaultValue="0.3" onChange={e => AudioEngine.setPadAttack(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <label>Release</label>
+                <input type="range" min="0.1" max="3.0" step="0.1" defaultValue="1.5" onChange={e => AudioEngine.setPadRelease(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <label>Filter</label>
+                <input type="range" min="100" max="8000" step="50" defaultValue="2000" onChange={e => AudioEngine.setPadFilterCutoff(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <div className="break-row"></div>
+                <label>Distortion</label>
+                <input type="range" min="0" max="1" step="0.01" defaultValue="0" onChange={e => AudioEngine.setPadDistortion(Number(e.target.value))} onWheel={handleSliderWheel} />
+              </div>
+              {/* Combined Step + Pitch + Voicing with quarter note grouping */}
+              <div className="pad-steps-container">
+                {[0, 1, 2, 3].map(groupIdx => (
+                  <div key={groupIdx} className="step-group pad-group">
+                    {[0, 1, 2, 3].map(stepInGroup => {
+                      const stepIndex = groupIdx * 4 + stepInGroup;
+                      const isActive = grid.pad[stepIndex];
+                      return (
+                        <div key={stepIndex} className="pad-step-wrapper">
+                          <div
+                            className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
+                            onMouseDown={() => handleStepMouseDown('pad', stepIndex)}
+                            onMouseEnter={() => handleStepMouseEnter('pad', stepIndex)}
+                          />
+                          <select 
+                            className="note-select"
+                            value={padPitches[stepIndex]}
+                            onChange={(e) => handlePadPitchChange(stepIndex, Number(e.target.value))}
+                            onWheel={(e) => handlePadNoteWheel(e, stepIndex)}
+                          >
+                            {/* C5 (72) to C2 (36) */}
+                            {Array.from({ length: 37 }, (_, i) => {
+                              const midi = 72 - i;
+                              const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                              const octave = Math.floor(midi / 12) - 1;
+                              const noteName = noteNames[midi % 12];
+                              return (
+                                <option key={midi} value={midi}>
+                                  {noteName}{octave}
+                                </option>
+                              );
+                            })}
+                          </select>
+                          <select 
+                            className="voicing-select"
+                            value={padVoicings[stepIndex]}
+                            onChange={(e) => handlePadVoicingChange(stepIndex, e.target.value)}
+                          >
+                            {PAD_VOICING_OPTIONS.map(v => (
+                              <option key={v} value={v}>{v}</option>
+                            ))}
                           </select>
                         </div>
                       );

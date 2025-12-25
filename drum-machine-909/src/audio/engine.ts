@@ -46,6 +46,7 @@ const snareVol = new Tone.Volume(0).connect(masterVol);
 const hihatVol = new Tone.Volume(0).connect(masterVol);
 const clapVol = new Tone.Volume(0).connect(masterVol);
 const bassVol = new Tone.Volume(0).connect(masterVol);
+const padVol = new Tone.Volume(0).connect(masterVol);
 
 // -- Send Nodes --
 // We create a specific Gain node for each send to control the level
@@ -74,6 +75,11 @@ const bassReverbSend = new Tone.Gain(0).connect(reverb);
 const bassDelaySend = new Tone.Gain(0).connect(delay);
 bassVol.connect(bassReverbSend);
 bassVol.connect(bassDelaySend);
+
+const padReverbSend = new Tone.Gain(0).connect(reverb);
+const padDelaySend = new Tone.Gain(0).connect(delay);
+padVol.connect(padReverbSend);
+padVol.connect(padDelaySend);
 
 
 // -- 909-ish Synth Setup --
@@ -155,25 +161,74 @@ const bass = new Tone.MonoSynth({
   }
 }).connect(bassVol);
 
+// -- Pad Synth (PolySynth for chords) --
+type PadVoicing = 'single' | 'octave' | 'fifth' | 'major' | 'minor' | 'sus2' | 'sus4';
+
+const getChordNotes = (root: number, voicing: PadVoicing): string[] => {
+  let midiNotes: number[];
+  switch(voicing) {
+    case 'single': midiNotes = [root]; break;
+    case 'octave': midiNotes = [root, root + 12]; break;
+    case 'fifth': midiNotes = [root, root + 7]; break;
+    case 'major': midiNotes = [root, root + 4, root + 7]; break;
+    case 'minor': midiNotes = [root, root + 3, root + 7]; break;
+    case 'sus2': midiNotes = [root, root + 2, root + 7]; break;
+    case 'sus4': midiNotes = [root, root + 5, root + 7]; break;
+    default: midiNotes = [root];
+  }
+  return midiNotes.map(m => Tone.Frequency(m, 'midi').toNote());
+};
+
+// Distortion for Pad
+const padDistortion = new Tone.Distortion({
+  distortion: 0, // 0-1, will be controlled by setPadDistortion
+  wet: 1.0 // Full wet since it's in series
+});
+
+const padFilter = new Tone.Filter({
+  type: 'lowpass',
+  frequency: 2000,
+  Q: 1
+}).connect(padVol);
+
+const pad = new Tone.PolySynth(Tone.Synth, {
+  oscillator: {
+    type: 'sine'
+  },
+  envelope: {
+    attack: 0.3,
+    decay: 0.5,
+    sustain: 0.8,
+    release: 1.5
+  }
+}).connect(padDistortion);
+
+// Chain: pad -> distortion -> filter -> volume
+padDistortion.connect(padFilter);
+
 // Keep track of per-step bass pitches (MIDI note numbers, default C2=36)
 let currentBassPitches: number[] = new Array(16).fill(36);
+
+// Keep track of per-step pad pitches (MIDI note numbers, default C3=48) and voicings
+let currentPadPitches: number[] = new Array(16).fill(48);
+let currentPadVoicings: PadVoicing[] = new Array(16).fill('single');
 
 // -- Sequencer State --
 // We keep a mutable reference to the grid so the repeat loop can read it without restarts
 let currentGrid: Record<Instrument, boolean[]> = {
   kick: [], snare: [], hihat: [], clap: [], 
   kick909: [], snare909: [], hihat909: [], clap909: [],
-  bass: []
+  bass: [], pad: []
 };
 let currentMutes: Record<Instrument, boolean> = {
   kick: false, snare: false, hihat: false, clap: false,
   kick909: false, snare909: false, hihat909: false, clap909: false,
-  bass: false
+  bass: false, pad: false
 };
 let currentSolos: Record<Instrument, boolean> = {
   kick: false, snare: false, hihat: false, clap: false,
   kick909: false, snare909: false, hihat909: false, clap909: false,
-  bass: false
+  bass: false, pad: false
 };
 let setStepCallback: (step: number) => void = () => {};
 
@@ -205,6 +260,12 @@ const loop = new Tone.Sequence(
       bass.triggerAttackRelease(note, '16n', time);
     }
 
+    // Trigger Pad
+    if (shouldPlay('pad') && currentGrid.pad[step]) {
+      const chordNotes = getChordNotes(currentPadPitches[step], currentPadVoicings[step]);
+      pad.triggerAttackRelease(chordNotes, '8n', time);
+    }
+
     // 2. Update UI
     Tone.Draw.schedule(() => {
       setStepCallback(step);
@@ -226,6 +287,14 @@ export const AudioEngine = {
   
   updateBassPitches: (pitches: number[]) => {
     currentBassPitches = pitches;
+  },
+
+  updatePadPitches: (pitches: number[]) => {
+    currentPadPitches = pitches;
+  },
+
+  updatePadVoicings: (voicings: string[]) => {
+    currentPadVoicings = voicings as PadVoicing[];
   },
 
   setBpm: (bpm: number) => {
@@ -314,6 +383,20 @@ export const AudioEngine = {
     currentSolos[inst] = val;
   },
 
+  // Pad Controls
+  setPadAttack: (val: number) => {
+    pad.set({ envelope: { attack: val } });
+  },
+  setPadRelease: (val: number) => {
+    pad.set({ envelope: { release: val } });
+  },
+  setPadFilterCutoff: (val: number) => {
+    padFilter.frequency.value = val;
+  },
+  setPadDistortion: (val: number) => {
+    padDistortion.distortion = val;
+  },
+
   // Volume
   setVolume: (inst: Instrument, val: number) => {
     if (inst === 'kick') kickVol.volume.value = val;
@@ -321,6 +404,7 @@ export const AudioEngine = {
     if (inst === 'hihat') hihatVol.volume.value = val;
     if (inst === 'clap') clapVol.volume.value = val;
     if (inst === 'bass') bassVol.volume.value = val;
+    if (inst === 'pad') padVol.volume.value = val;
   },
 
   // Rev/Delay Sends
@@ -339,6 +423,7 @@ export const AudioEngine = {
      if (inst === 'hihat') hihatReverbSend.gain.rampTo(linear, 0.1);
      if (inst === 'clap') clapReverbSend.gain.rampTo(linear, 0.1);
      if (inst === 'bass') bassReverbSend.gain.rampTo(linear, 0.1);
+     if (inst === 'pad') padReverbSend.gain.rampTo(linear, 0.1);
   },
   setDelaySend: (inst: Instrument, val: number) => {
      const linear = val <= -60 ? 0 : Tone.dbToGain(val);
@@ -348,6 +433,7 @@ export const AudioEngine = {
      if (inst === 'hihat') hihatDelaySend.gain.rampTo(linear, 0.1);
      if (inst === 'clap') clapDelaySend.gain.rampTo(linear, 0.1);
      if (inst === 'bass') bassDelaySend.gain.rampTo(linear, 0.1);
+     if (inst === 'pad') padDelaySend.gain.rampTo(linear, 0.1);
   },
 
   // Visualizer
