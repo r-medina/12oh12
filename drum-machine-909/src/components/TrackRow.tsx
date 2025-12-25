@@ -81,14 +81,14 @@ export const TrackRow: React.FC<TrackRowProps> = ({
         {/* Right Group: Sends & EQ */}
         <div className="track-sends-eq">
           <div className="control-pill-group sends-group">
-            <Knob label="REV" min={-60} max={0} value={reverbSend} onChange={onReverbSendChange} size={28} />
-            <Knob label="DLY" min={-60} max={0} value={delaySend} onChange={onDelaySendChange} size={28} />
+            <Knob label="REV" min={-60} max={0} value={reverbSend} onChange={onReverbSendChange} size={36} />
+            <Knob label="DLY" min={-60} max={0} value={delaySend} onChange={onDelaySendChange} size={36} />
           </div>
           
           <div className="control-pill-group eq-group">
-            <Knob label="Lo" min={-12} max={12} value={eq.low} onChange={v => onEQChange('low', v)} onDoubleClick={() => onEQChange('low', 0)} size={24} />
-            <Knob label="Mid" min={-12} max={12} value={eq.mid} onChange={v => onEQChange('mid', v)} onDoubleClick={() => onEQChange('mid', 0)} size={24} />
-            <Knob label="Hi" min={-12} max={12} value={eq.high} onChange={v => onEQChange('high', v)} onDoubleClick={() => onEQChange('high', 0)} size={24} />
+            <Knob label="Lo" min={-12} max={12} value={eq.low} onChange={v => onEQChange('low', v)} onDoubleClick={() => onEQChange('low', 0)} size={32} />
+            <Knob label="Mid" min={-12} max={12} value={eq.mid} onChange={v => onEQChange('mid', v)} onDoubleClick={() => onEQChange('mid', 0)} size={32} />
+            <Knob label="Hi" min={-12} max={12} value={eq.high} onChange={v => onEQChange('high', v)} onDoubleClick={() => onEQChange('high', 0)} size={32} />
           </div>
         </div>
 

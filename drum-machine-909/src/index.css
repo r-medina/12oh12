@@ -805,6 +805,31 @@ input[type="range"]::-moz-range-thumb {
     min-height: 60px;
     max-height: 80px;
   }
+
+  /* iPad/Tablet: Improve touch targets for knobs */
+  .track-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .track-sends-eq {
+    gap: 12px;
+  }
+
+  .sends-group, .eq-group {
+    gap: 10px;
+  }
+
+  /* Scale up knob containers for better touch */
+  .knob-container {
+    transform: scale(1.15);
+    transform-origin: center;
+    margin: 4px;
+  }
+
+  .track-grid-row {
+    padding-left: 0; /* Reset alignment for tablet */
+  }
 }
 
 /* Mobile Devices */
@@ -943,8 +968,8 @@ input[type="range"]::-moz-range-thumb {
   border: 1px solid transparent;
   transition: all 0.2s ease;
   position: absolute;
-  top: 8px;
-  right: 8px;
+  bottom: 8px;
+  left: 8px;
   z-index: 10;
 }
 

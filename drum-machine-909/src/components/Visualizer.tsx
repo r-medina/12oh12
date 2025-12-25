@@ -9,6 +9,7 @@ interface VisualizerProps {
 export function Visualizer({ theme, isPlaying }: VisualizerProps) {
   const [on, setOn] = useState(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const peaksRef = useRef<{ val: number, timer: number }[]>([]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -76,21 +77,35 @@ export function Visualizer({ theme, isPlaying }: VisualizerProps) {
     const accentColorStr = style.getPropertyValue('--accent-primary').trim() || '#ff5722';
     const inactiveColor = style.getPropertyValue('--step-off').trim() || '#2a2a2a';
     const accentRGB = parseColor(accentColorStr);
-    const darkRedRGB = { r: 180, g: 20, b: 20 };
 
     const getPixelColor = (r: number, isClipping: boolean) => {
-      const factor = r / (rows - 1);
+      // Use a power function to make the color transition more dramatic towards the top
+      // This keeps the bottom few rows closer to the accent color and shifts rapidly at the top
+      const factor = Math.pow(r / (rows - 1), 2); // Steeper curve
       
       if (isClipping && r === rows - 1) {
-         return 'rgb(255, 0, 0)';
+         return 'rgb(255, 255, 255)'; // Pure White for clipping
       }
 
-      const currR = Math.round(accentRGB.r + factor * (darkRedRGB.r - accentRGB.r));
-      const currG = Math.round(accentRGB.g + factor * (darkRedRGB.g - accentRGB.g));
-      const currB = Math.round(accentRGB.b + factor * (darkRedRGB.b - accentRGB.b));
+      // Transition from accent color to a hot yellow/white
+      const targetRGB = { r: 255, g: 255, b: 0 }; // Bright Yellow
+      
+      const currR = Math.round(accentRGB.r + factor * (targetRGB.r - accentRGB.r));
+      const currG = Math.round(accentRGB.g + factor * (targetRGB.g - accentRGB.g));
+      const currB = Math.round(accentRGB.b + factor * (targetRGB.b - accentRGB.b));
       
       return `rgb(${currR}, ${currG}, ${currB})`;
     };
+
+    // Peak Hold State
+    // Peak Hold State
+    const dropRate = 0.005; // Drop rate per ms (in normalized 0-1 units)
+    const holdTime = 500;   // ms to hold peak before dropping
+
+    // Initialize peaks if needed
+    if (peaksRef.current.length !== totalCols) {
+        peaksRef.current = Array(totalCols).fill(null).map(() => ({ val: 0, timer: 0 }));
+    }
 
     const draw = (timestamp: number) => {
       animationId = requestAnimationFrame(draw);
@@ -120,11 +135,25 @@ export function Visualizer({ theme, isPlaying }: VisualizerProps) {
             const val = values[binIndex];
             
             const minDb = -80;
-            const maxDb = -20;
+            const maxDb = -40; // Increased sensitivity (was -20)
             let normalized = (val - minDb) / (maxDb - minDb);
             normalized = Math.max(0, Math.min(1, normalized));
             
+            // Peak Hold Logic
+            const peak = peaksRef.current[c];
+            if (normalized > peak.val) {
+                peak.val = normalized;
+                peak.timer = holdTime;
+            } else {
+                if (peak.timer > 0) {
+                    peak.timer -= elapsed;
+                } else {
+                    peak.val = Math.max(0, peak.val - dropRate * elapsed);
+                }
+            }
+
             const litPixels = Math.floor(normalized * rows);
+            const peakPixel = Math.min(rows - 1, Math.floor(peak.val * rows));
 
             for (let r = 0; r < rows; r++) {
               const y = height - ((r + 1) * (pixelSize + gap));
@@ -135,6 +164,13 @@ export function Visualizer({ theme, isPlaying }: VisualizerProps) {
                 ctx.fillStyle = color;
                 ctx.shadowColor = color;
                 ctx.shadowBlur = 1;
+              } else if (r === peakPixel && peak.val > 0.05) {
+                 // Peak Indicator
+                 ctx.fillStyle = getPixelColor(r, false); // Match the color of that height
+                 ctx.shadowColor = ctx.fillStyle;
+                 ctx.shadowBlur = 0;
+                 // Make it slightly lighter/white for visibility
+                 ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
               } else {
                 ctx.fillStyle = inactiveColor;
                 ctx.shadowBlur = 0;
@@ -146,6 +182,9 @@ export function Visualizer({ theme, isPlaying }: VisualizerProps) {
           }
         }
       } else {
+         // Reset peaks when off/stopped
+         peaksRef.current.forEach(p => { p.val = 0; });
+
          // If OFF, draw inactive grid for consistent aesthetics
          for (let c = 0; c < cols; c++) {
             for (let r = 0; r < rows; r++) {
@@ -168,6 +207,24 @@ export function Visualizer({ theme, isPlaying }: VisualizerProps) {
       const masterLit = Math.floor(masterNorm * rows);
       const isMasterClipping = masterLevelDb > -0.5;
 
+       // Peak hold for Master
+       // We use the slots after 'cols' for master channels (merged here as 1 visuals, but let's just use index 'cols')
+       const masterPeakIdx = cols;
+       const masterPeak = peaksRef.current[masterPeakIdx];
+       
+       if (masterNorm > masterPeak.val) {
+           masterPeak.val = masterNorm;
+           masterPeak.timer = holdTime;
+       } else {
+           if (masterPeak.timer > 0) {
+               masterPeak.timer -= elapsed;
+           } else {
+               masterPeak.val = Math.max(0, masterPeak.val - dropRate * elapsed);
+           }
+       }
+       const masterPeakPixel = Math.min(rows - 1, Math.floor(masterPeak.val * rows));
+
+
       for (let r = 0; r < rows; r++) {
           const y = height - ((r + 1) * (pixelSize + gap));
           const x = masterXStart;
@@ -177,6 +234,9 @@ export function Visualizer({ theme, isPlaying }: VisualizerProps) {
                ctx.fillStyle = color;
                ctx.shadowColor = color;
                ctx.shadowBlur = 1;
+          } else if (r === masterPeakPixel && masterPeak.val > 0.05) {
+               ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+               ctx.shadowBlur = 0;
           } else {
               ctx.fillStyle = inactiveColor;
               ctx.shadowBlur = 0;
