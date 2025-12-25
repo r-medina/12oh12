@@ -99,8 +99,8 @@ snare.connect(snareFilter);
 const hihat = new Tone.MetalSynth({
   envelope: {
     attack: 0.001,
-    decay: 0.01,
-    release: 0.01
+    decay: 0.2,
+    release: 0.2
   },
   harmonicity: 5.1,
   modulationIndex: 32,
@@ -186,7 +186,7 @@ const loop = new Tone.Sequence(
     // Note: MetalSynth.triggerAttackRelease needs velocity as 3rd arg in some versions or just time. 
     // Typescript definition says (note, duration, time, velocity). 
     // We stick to the existing valid call: 'C6', '32n', time, 0.6
-    if (shouldPlay('hihat') && currentGrid.hihat[step]) hihat.triggerAttackRelease('C6', '32n', time, 0.6);
+    if (shouldPlay('hihat') && currentGrid.hihat[step]) hihat.triggerAttackRelease('C6', '8n', time, 0.6);
     if (shouldPlay('clap') && currentGrid.clap[step]) clap.triggerAttackRelease('8n', time);
     
     // Trigger Bass

@@ -416,7 +416,7 @@ function App() {
                 <label className="vol-label">Vol: {volumes.hihat}dB</label>
                 <input type="range" min="-60" max="0" step="1" value={volumes.hihat} onChange={e => handleVolumeChange('hihat', Number(e.target.value))} onWheel={(e) => handleVolumeWheel(e, 'hihat')} />
                 <label>Decay</label>
-                <input type="range" min="0.01" max="0.5" step="0.01" defaultValue="0.1" onChange={e => AudioEngine.setHiHatDecay(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <input type="range" min="0.05" max="1.0" step="0.01" defaultValue="0.2" onChange={e => AudioEngine.setHiHatDecay(Number(e.target.value))} onWheel={handleSliderWheel} />
                 <label>Tone</label>
                 <input type="range" min="500" max="10000" step="100" defaultValue="3000" onChange={e => AudioEngine.setHiHatTone(Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
