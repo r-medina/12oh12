@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import { AudioEngine } from './audio/engine';
 import { Visualizer } from './components/Visualizer';
-import { Knob } from './components/Knob';
+import { TrackRow } from './components/TrackRow';
 import { SceneSelector } from './components/SceneSelector';
 import { ShortcutHelp } from './components/ShortcutHelp';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -597,379 +597,377 @@ function App() {
 
       <div className="sequencer-grid">
         {/* Kick */}
-        <div className="track-container">
-          <div className="track-controls">
-            <div className="track-label">kick</div>
-            <div className="track-utils-column">
-              <div className="mute-solo-row">
-                  <button className={`ms-btn ${mutes.kick ? 'active' : ''}`} onClick={() => handleMute('kick')}>M</button>
-                  <button className={`ms-btn ${solos.kick ? 'active' : ''}`} onClick={() => handleSolo('kick')}>S</button>
-              </div>
-              <div className="sends-row control-pill-group">
-                 <Knob label="REV" min={-60} max={0} value={reverbSends.kick} onChange={v => handleReverbSendChange('kick', v)} size={28} />
-                 <Knob label="DLY" min={-60} max={0} value={delaySends.kick} onChange={v => handleDelaySendChange('kick', v)} size={28} />
-              </div>
-              <div className="eq-row control-pill-group">
-                 <Knob label="Lo" min={-12} max={12} value={eqGains.kick.low} onChange={v => handleEQChange('kick', 'low', v)} onDoubleClick={() => handleEQChange('kick', 'low', 0)} size={24} />
-                 <Knob label="Mid" min={-12} max={12} value={eqGains.kick.mid} onChange={v => handleEQChange('kick', 'mid', v)} onDoubleClick={() => handleEQChange('kick', 'mid', 0)} size={24} />
-                 <Knob label="Hi" min={-12} max={12} value={eqGains.kick.high} onChange={v => handleEQChange('kick', 'high', v)} onDoubleClick={() => handleEQChange('kick', 'high', 0)} size={24} />
-              </div>
-            </div>
-          </div>
-          <div className="track">
-            <div className="track-main">
-              <div className="knob-row">
-                <label className="vol-label">Vol: {volumes.kick}dB</label>
-                <input type="range" min="-60" max="0" step="1" value={volumes.kick} onChange={e => handleVolumeChange('kick', Number(e.target.value))} onWheel={(e) => handleVolumeWheel(e, 'kick')} />
+        <TrackRow
+          label="kick"
+          instrument="kick"
+          mute={mutes.kick}
+          solo={solos.kick}
+          volume={volumes.kick}
+          reverbSend={reverbSends.kick}
+          delaySend={delaySends.kick}
+          eq={eqGains.kick}
+          onMute={() => handleMute('kick')}
+          onSolo={() => handleSolo('kick')}
+          onVolumeChange={(v) => handleVolumeChange('kick', v)}
+          onVolumeWheel={(e) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'kick')}
+          onReverbSendChange={(v) => handleReverbSendChange('kick', v)}
+          onDelaySendChange={(v) => handleDelaySendChange('kick', v)}
+          onEQChange={(band, v) => handleEQChange('kick', band, v)}
+          extraControls={
+            <>
+              <div className="param-item">
                 <label>Tune</label>
                 <input type="range" min="0.01" max="0.3" step="0.01" defaultValue="0.05" onChange={e => AudioEngine.setKickPitchDecay(Number(e.target.value))} onWheel={handleSliderWheel} />
+              </div>
+              <div className="param-item">
                 <label>Decay</label>
                 <input type="range" min="0.1" max="2.0" step="0.1" defaultValue="0.4" onChange={e => AudioEngine.setKickDecay(Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
-              <div className="steps-container">
-                {[0, 1, 2, 3].map(groupIdx => (
-                  <div key={groupIdx} className="step-group">
-                    {[0, 1, 2, 3].map(stepInGroup => {
-                      const stepIndex = groupIdx * 4 + stepInGroup;
-                      const isActive = grid.kick[stepIndex];
-                      return (
-                        <div
-                          key={stepIndex}
-                          className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
-                          onMouseDown={() => handleStepMouseDown('kick', stepIndex)}
-                          onMouseEnter={() => handleStepMouseEnter('kick', stepIndex)}
-                        />
-                      );
-                    })}
-                  </div>
-                ))}
+            </>
+          }
+        >
+          <div className="steps-container">
+            {[0, 1, 2, 3].map(groupIdx => (
+              <div key={groupIdx} className="step-group">
+                {[0, 1, 2, 3].map(stepInGroup => {
+                  const stepIndex = groupIdx * 4 + stepInGroup;
+                  const isActive = grid.kick[stepIndex];
+                  return (
+                    <div
+                      key={stepIndex}
+                      className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
+                      onMouseDown={() => handleStepMouseDown('kick', stepIndex)}
+                      onMouseEnter={() => handleStepMouseEnter('kick', stepIndex)}
+                    />
+                  );
+                })}
               </div>
-            </div>
+            ))}
           </div>
-        </div>
+        </TrackRow>
 
         {/* Snare */}
-        <div className="track-container">
-          <div className="track-controls">
-            <div className="track-label">snare</div>
-            <div className="track-utils-column">
-              <div className="mute-solo-row">
-                  <button className={`ms-btn ${mutes.snare ? 'active' : ''}`} onClick={() => handleMute('snare')}>M</button>
-                  <button className={`ms-btn ${solos.snare ? 'active' : ''}`} onClick={() => handleSolo('snare')}>S</button>
-              </div>
-              <div className="sends-row control-pill-group">
-                 <Knob label="REV" min={-60} max={0} value={reverbSends.snare} onChange={v => handleReverbSendChange('snare', v)} size={28} />
-                 <Knob label="DLY" min={-60} max={0} value={delaySends.snare} onChange={v => handleDelaySendChange('snare', v)} size={28} />
-              </div>
-              <div className="eq-row control-pill-group">
-                 <Knob label="Lo" min={-12} max={12} value={eqGains.snare.low} onChange={v => handleEQChange('snare', 'low', v)} onDoubleClick={() => handleEQChange('snare', 'low', 0)} size={24} />
-                 <Knob label="Mid" min={-12} max={12} value={eqGains.snare.mid} onChange={v => handleEQChange('snare', 'mid', v)} onDoubleClick={() => handleEQChange('snare', 'mid', 0)} size={24} />
-                 <Knob label="Hi" min={-12} max={12} value={eqGains.snare.high} onChange={v => handleEQChange('snare', 'high', v)} onDoubleClick={() => handleEQChange('snare', 'high', 0)} size={24} />
-              </div>
-            </div>
-          </div>
-          <div className="track">
-            <div className="track-main">
-              <div className="knob-row">
-                <label className="vol-label">Vol: {volumes.snare}dB</label>
-                <input type="range" min="-60" max="0" step="1" value={volumes.snare} onChange={e => handleVolumeChange('snare', Number(e.target.value))} onWheel={(e) => handleVolumeWheel(e, 'snare')} />
+        <TrackRow
+          label="snare"
+          instrument="snare"
+          mute={mutes.snare}
+          solo={solos.snare}
+          volume={volumes.snare}
+          reverbSend={reverbSends.snare}
+          delaySend={delaySends.snare}
+          eq={eqGains.snare}
+          onMute={() => handleMute('snare')}
+          onSolo={() => handleSolo('snare')}
+          onVolumeChange={(v) => handleVolumeChange('snare', v)}
+          onVolumeWheel={(e) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'snare')}
+          onReverbSendChange={(v) => handleReverbSendChange('snare', v)}
+          onDelaySendChange={(v) => handleDelaySendChange('snare', v)}
+          onEQChange={(band, v) => handleEQChange('snare', band, v)}
+          extraControls={
+            <>
+              <div className="param-item">
                 <label>Tone</label>
                 <input type="range" min="400" max="6000" step="100" defaultValue="3000" onChange={e => AudioEngine.setSnareTone(Number(e.target.value))} onWheel={handleSliderWheel} />
+              </div>
+              <div className="param-item">
                 <label>Snappy</label>
                 <input type="range" min="0.05" max="0.5" step="0.01" defaultValue="0.2" onChange={e => AudioEngine.setSnareDecay(Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
-              <div className="steps-container">
-                {[0, 1, 2, 3].map(groupIdx => (
-                  <div key={groupIdx} className="step-group">
-                    {[0, 1, 2, 3].map(stepInGroup => {
-                      const stepIndex = groupIdx * 4 + stepInGroup;
-                      const isActive = grid.snare[stepIndex];
-                      return (
-                        <div
-                          key={stepIndex}
-                          className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
-                          onMouseDown={() => handleStepMouseDown('snare', stepIndex)}
-                          onMouseEnter={() => handleStepMouseEnter('snare', stepIndex)}
-                        />
-                      );
-                    })}
-                  </div>
-                ))}
+            </>
+          }
+        >
+          <div className="steps-container">
+            {[0, 1, 2, 3].map(groupIdx => (
+              <div key={groupIdx} className="step-group">
+                {[0, 1, 2, 3].map(stepInGroup => {
+                  const stepIndex = groupIdx * 4 + stepInGroup;
+                  const isActive = grid.snare[stepIndex];
+                  return (
+                    <div
+                      key={stepIndex}
+                      className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
+                      onMouseDown={() => handleStepMouseDown('snare', stepIndex)}
+                      onMouseEnter={() => handleStepMouseEnter('snare', stepIndex)}
+                    />
+                  );
+                })}
               </div>
-            </div>
+            ))}
           </div>
-        </div>
+        </TrackRow>
 
         {/* HiHat */}
-        <div className="track-container">
-          <div className="track-controls">
-            <div className="track-label">hihat</div>
-            <div className="track-utils-column">
-              <div className="mute-solo-row">
-                  <button className={`ms-btn ${mutes.hihat ? 'active' : ''}`} onClick={() => handleMute('hihat')}>M</button>
-                  <button className={`ms-btn ${solos.hihat ? 'active' : ''}`} onClick={() => handleSolo('hihat')}>S</button>
-              </div>
-              <div className="sends-row control-pill-group">
-                 <Knob label="REV" min={-60} max={0} value={reverbSends.hihat} onChange={v => handleReverbSendChange('hihat', v)} size={28} />
-                 <Knob label="DLY" min={-60} max={0} value={delaySends.hihat} onChange={v => handleDelaySendChange('hihat', v)} size={28} />
-              </div>
-              <div className="eq-row control-pill-group">
-                 <Knob label="Lo" min={-12} max={12} value={eqGains.hihat.low} onChange={v => handleEQChange('hihat', 'low', v)} onDoubleClick={() => handleEQChange('hihat', 'low', 0)} size={24} />
-                 <Knob label="Mid" min={-12} max={12} value={eqGains.hihat.mid} onChange={v => handleEQChange('hihat', 'mid', v)} onDoubleClick={() => handleEQChange('hihat', 'mid', 0)} size={24} />
-                 <Knob label="Hi" min={-12} max={12} value={eqGains.hihat.high} onChange={v => handleEQChange('hihat', 'high', v)} onDoubleClick={() => handleEQChange('hihat', 'high', 0)} size={24} />
-              </div>
-            </div>
-          </div>
-          <div className="track">
-            <div className="track-main">
-              <div className="knob-row">
-                <label className="vol-label">Vol: {volumes.hihat}dB</label>
-                <input type="range" min="-60" max="0" step="1" value={volumes.hihat} onChange={e => handleVolumeChange('hihat', Number(e.target.value))} onWheel={(e) => handleVolumeWheel(e, 'hihat')} />
+        <TrackRow
+          label="hihat"
+          instrument="hihat"
+          mute={mutes.hihat}
+          solo={solos.hihat}
+          volume={volumes.hihat}
+          reverbSend={reverbSends.hihat}
+          delaySend={delaySends.hihat}
+          eq={eqGains.hihat}
+          onMute={() => handleMute('hihat')}
+          onSolo={() => handleSolo('hihat')}
+          onVolumeChange={(v) => handleVolumeChange('hihat', v)}
+          onVolumeWheel={(e) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'hihat')}
+          onReverbSendChange={(v) => handleReverbSendChange('hihat', v)}
+          onDelaySendChange={(v) => handleDelaySendChange('hihat', v)}
+          onEQChange={(band, v) => handleEQChange('hihat', band, v)}
+          extraControls={
+            <>
+              <div className="param-item">
                 <label>Decay</label>
                 <input type="range" min="0.05" max="1.0" step="0.01" defaultValue="0.2" onChange={e => AudioEngine.setHiHatDecay(Number(e.target.value))} onWheel={handleSliderWheel} />
+              </div>
+              <div className="param-item">
                 <label>Tone</label>
                 <input type="range" min="500" max="10000" step="100" defaultValue="3000" onChange={e => AudioEngine.setHiHatTone(Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
-              <div className="steps-container">
-                {[0, 1, 2, 3].map(groupIdx => (
-                  <div key={groupIdx} className="step-group">
-                    {[0, 1, 2, 3].map(stepInGroup => {
-                      const stepIndex = groupIdx * 4 + stepInGroup;
-                      const isActive = grid.hihat[stepIndex];
-                      return (
-                        <div
-                          key={stepIndex}
-                          className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
-                          onMouseDown={() => handleStepMouseDown('hihat', stepIndex)}
-                          onMouseEnter={() => handleStepMouseEnter('hihat', stepIndex)}
-                        />
-                      );
-                    })}
-                  </div>
-                ))}
+            </>
+          }
+        >
+          <div className="steps-container">
+            {[0, 1, 2, 3].map(groupIdx => (
+              <div key={groupIdx} className="step-group">
+                {[0, 1, 2, 3].map(stepInGroup => {
+                  const stepIndex = groupIdx * 4 + stepInGroup;
+                  const isActive = grid.hihat[stepIndex];
+                  return (
+                    <div
+                      key={stepIndex}
+                      className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
+                      onMouseDown={() => handleStepMouseDown('hihat', stepIndex)}
+                      onMouseEnter={() => handleStepMouseEnter('hihat', stepIndex)}
+                    />
+                  );
+                })}
               </div>
-            </div>
+            ))}
           </div>
-        </div>
+        </TrackRow>
 
         {/* Clap */}
-        <div className="track-container">
-          <div className="track-controls">
-            <div className="track-label">clap</div>
-            <div className="track-utils-column">
-              <div className="mute-solo-row">
-                  <button className={`ms-btn ${mutes.clap ? 'active' : ''}`} onClick={() => handleMute('clap')}>M</button>
-                  <button className={`ms-btn ${solos.clap ? 'active' : ''}`} onClick={() => handleSolo('clap')}>S</button>
-              </div>
-              <div className="sends-row control-pill-group">
-                 <Knob label="REV" min={-60} max={0} value={reverbSends.clap} onChange={v => handleReverbSendChange('clap', v)} size={28} />
-                 <Knob label="DLY" min={-60} max={0} value={delaySends.clap} onChange={v => handleDelaySendChange('clap', v)} size={28} />
-              </div>
-              <div className="eq-row control-pill-group">
-                 <Knob label="Lo" min={-12} max={12} value={eqGains.clap.low} onChange={v => handleEQChange('clap', 'low', v)} onDoubleClick={() => handleEQChange('clap', 'low', 0)} size={24} />
-                 <Knob label="Mid" min={-12} max={12} value={eqGains.clap.mid} onChange={v => handleEQChange('clap', 'mid', v)} onDoubleClick={() => handleEQChange('clap', 'mid', 0)} size={24} />
-                 <Knob label="Hi" min={-12} max={12} value={eqGains.clap.high} onChange={v => handleEQChange('clap', 'high', v)} onDoubleClick={() => handleEQChange('clap', 'high', 0)} size={24} />
-              </div>
-            </div>
-          </div>
-          <div className="track">
-            <div className="track-main">
-              <div className="knob-row">
-                <label className="vol-label">Vol: {volumes.clap}dB</label>
-                <input type="range" min="-60" max="0" step="1" value={volumes.clap} onChange={e => handleVolumeChange('clap', Number(e.target.value))} onWheel={(e) => handleVolumeWheel(e, 'clap')} />
+        <TrackRow
+          label="clap"
+          instrument="clap"
+          mute={mutes.clap}
+          solo={solos.clap}
+          volume={volumes.clap}
+          reverbSend={reverbSends.clap}
+          delaySend={delaySends.clap}
+          eq={eqGains.clap}
+          onMute={() => handleMute('clap')}
+          onSolo={() => handleSolo('clap')}
+          onVolumeChange={(v) => handleVolumeChange('clap', v)}
+          onVolumeWheel={(e) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'clap')}
+          onReverbSendChange={(v) => handleReverbSendChange('clap', v)}
+          onDelaySendChange={(v) => handleDelaySendChange('clap', v)}
+          onEQChange={(band, v) => handleEQChange('clap', band, v)}
+          extraControls={
+            <>
+              <div className="param-item">
                 <label>Decay</label>
                 <input type="range" min="0.01" max="0.5" step="0.01" defaultValue="0.3" onChange={e => AudioEngine.setClapDecay(Number(e.target.value))} onWheel={handleSliderWheel} />
+              </div>
+              <div className="param-item">
                 <label>Tone</label>
                 <input type="range" min="500" max="4000" step="100" defaultValue="1500" onChange={e => AudioEngine.setClapTone(Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
-              <div className="steps-container">
-                {[0, 1, 2, 3].map(groupIdx => (
-                  <div key={groupIdx} className="step-group">
-                    {[0, 1, 2, 3].map(stepInGroup => {
-                      const stepIndex = groupIdx * 4 + stepInGroup;
-                      const isActive = grid.clap[stepIndex];
-                      return (
-                        <div
-                          key={stepIndex}
-                          className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
-                          onMouseDown={() => handleStepMouseDown('clap', stepIndex)}
-                          onMouseEnter={() => handleStepMouseEnter('clap', stepIndex)}
-                        />
-                      );
-                    })}
-                  </div>
-                ))}
+            </>
+          }
+        >
+          <div className="steps-container">
+            {[0, 1, 2, 3].map(groupIdx => (
+              <div key={groupIdx} className="step-group">
+                {[0, 1, 2, 3].map(stepInGroup => {
+                  const stepIndex = groupIdx * 4 + stepInGroup;
+                  const isActive = grid.clap[stepIndex];
+                  return (
+                    <div
+                      key={stepIndex}
+                      className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
+                      onMouseDown={() => handleStepMouseDown('clap', stepIndex)}
+                      onMouseEnter={() => handleStepMouseEnter('clap', stepIndex)}
+                    />
+                  );
+                })}
               </div>
-            </div>
+            ))}
           </div>
-        </div>
+        </TrackRow>
 
         {/* Bass (303) */}
-        <div className="track-container bass-container">
-          <div className="track-controls">
-            <div className="track-label">303 Bass</div>
-            <div className="track-utils-column">
-              <div className="mute-solo-row">
-                  <button className={`ms-btn ${mutes.bass ? 'active' : ''}`} onClick={() => handleMute('bass')}>M</button>
-                  <button className={`ms-btn ${solos.bass ? 'active' : ''}`} onClick={() => handleSolo('bass')}>S</button>
-              </div>
-              <div className="sends-row control-pill-group">
-                 <Knob label="REV" min={-60} max={0} value={reverbSends.bass} onChange={v => handleReverbSendChange('bass', v)} size={28} />
-                 <Knob label="DLY" min={-60} max={0} value={delaySends.bass} onChange={v => handleDelaySendChange('bass', v)} size={28} />
-              </div>
-              <div className="eq-row control-pill-group">
-                 <Knob label="Lo" min={-12} max={12} value={eqGains.bass.low} onChange={v => handleEQChange('bass', 'low', v)} onDoubleClick={() => handleEQChange('bass', 'low', 0)} size={24} />
-                 <Knob label="Mid" min={-12} max={12} value={eqGains.bass.mid} onChange={v => handleEQChange('bass', 'mid', v)} onDoubleClick={() => handleEQChange('bass', 'mid', 0)} size={24} />
-                 <Knob label="Hi" min={-12} max={12} value={eqGains.bass.high} onChange={v => handleEQChange('bass', 'high', v)} onDoubleClick={() => handleEQChange('bass', 'high', 0)} size={24} />
-              </div>
-            </div>
-          </div>
-          <div className="track">
-            <div className="track-main">
-              <div className="knob-row">
-                <label className="vol-label">Vol: {volumes.bass}dB</label>
-                <input type="range" min="-60" max="0" step="1" value={volumes.bass} onChange={e => handleVolumeChange('bass', Number(e.target.value))} onWheel={(e) => handleVolumeWheel(e, 'bass')} />
+        <TrackRow
+          label="303 Bass"
+          instrument="bass"
+          className="bass-container"
+          mute={mutes.bass}
+          solo={solos.bass}
+          volume={volumes.bass}
+          reverbSend={reverbSends.bass}
+          delaySend={delaySends.bass}
+          eq={eqGains.bass}
+          onMute={() => handleMute('bass')}
+          onSolo={() => handleSolo('bass')}
+          onVolumeChange={(v) => handleVolumeChange('bass', v)}
+          onVolumeWheel={(e) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'bass')}
+          onReverbSendChange={(v) => handleReverbSendChange('bass', v)}
+          onDelaySendChange={(v) => handleDelaySendChange('bass', v)}
+          onEQChange={(band, v) => handleEQChange('bass', band, v)}
+          extraControls={
+            <>
+              <div className="param-item">
                 <label>Cutoff</label>
                 <input type="range" min="50" max="5000" step="10" defaultValue="200" onChange={e => AudioEngine.setBassCutoff(Number(e.target.value))} onWheel={handleSliderWheel} />
+              </div>
+              <div className="param-item">
                 <label>Res</label>
                 <input type="range" min="0" max="20" step="0.1" defaultValue="2" onChange={e => AudioEngine.setBassResonance(Number(e.target.value))} onWheel={handleSliderWheel} />
+              </div>
+              <div className="param-item">
                 <label>Env Mod</label>
                 <input type="range" min="0" max="8" step="0.1" defaultValue="2" onChange={e => AudioEngine.setBassEnvMod(Number(e.target.value))} onWheel={handleSliderWheel} />
-                <div className="break-row"></div>
+              </div>
+              <div className="param-item">
                 <label>Decay</label>
                 <input type="range" min="0.1" max="2.0" step="0.1" defaultValue="0.2" onChange={e => AudioEngine.setBassDecay(Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
-              {/* Combined Step + Pitch with quarter note grouping */}
-              <div className="bass-steps-container">
-                {[0, 1, 2, 3].map(groupIdx => (
-                  <div key={groupIdx} className="step-group bass-group">
-                    {[0, 1, 2, 3].map(stepInGroup => {
-                      const stepIndex = groupIdx * 4 + stepInGroup;
-                      const isActive = grid.bass[stepIndex];
-                      return (
-                        <div key={stepIndex} className="bass-step-wrapper">
-                          <div
-                            className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
-                            onMouseDown={() => handleStepMouseDown('bass', stepIndex)}
-                            onMouseEnter={() => handleStepMouseEnter('bass', stepIndex)}
-                          />
-                          <select 
-                            className="note-select"
-                            value={bassPitches[stepIndex]}
-                            onChange={(e) => handleBassPitchChange(stepIndex, Number(e.target.value))}
-                            onWheel={(e) => handleNoteWheel(e, stepIndex)}
-                          >
-                            {/* C4 (60) to C1 (24) */}
-                            {Array.from({ length: 37 }, (_, i) => {
-                              const midi = 60 - i;
-                              const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-                              const octave = Math.floor(midi / 12) - 1;
-                              const noteName = noteNames[midi % 12];
-                              return (
-                                <option key={midi} value={midi}>
-                                  {noteName}{octave}
-                                </option>
-                              );
-                            })}
-                          </select>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
+            </>
+          }
+        >
+          {/* Combined Step + Pitch with quarter note grouping */}
+          <div className="bass-steps-container">
+            {[0, 1, 2, 3].map(groupIdx => (
+              <div key={groupIdx} className="step-group bass-group">
+                {[0, 1, 2, 3].map(stepInGroup => {
+                  const stepIndex = groupIdx * 4 + stepInGroup;
+                  const isActive = grid.bass[stepIndex];
+                  return (
+                    <div key={stepIndex} className="bass-step-wrapper">
+                      <div
+                        className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
+                        onMouseDown={() => handleStepMouseDown('bass', stepIndex)}
+                        onMouseEnter={() => handleStepMouseEnter('bass', stepIndex)}
+                      />
+                      <select 
+                        className="note-select"
+                        value={bassPitches[stepIndex]}
+                        onChange={(e) => handleBassPitchChange(stepIndex, Number(e.target.value))}
+                        onWheel={(e) => handleNoteWheel(e, stepIndex)}
+                      >
+                        {/* C4 (60) to C1 (24) */}
+                        {Array.from({ length: 37 }, (_, i) => {
+                          const midi = 60 - i;
+                          const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                          const octave = Math.floor(midi / 12) - 1;
+                          const noteName = noteNames[midi % 12];
+                          return (
+                            <option key={midi} value={midi}>
+                              {noteName}{octave}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
+            ))}
           </div>
-        </div>
+        </TrackRow>
 
         {/* Pad Synth */}
-        <div className="track-container pad-container">
-          <div className="track-controls">
-            <div className="track-label">Pad</div>
-            <div className="track-utils-column">
-              <div className="mute-solo-row">
-                  <button className={`ms-btn ${mutes.pad ? 'active' : ''}`} onClick={() => handleMute('pad')}>M</button>
-                  <button className={`ms-btn ${solos.pad ? 'active' : ''}`} onClick={() => handleSolo('pad')}>S</button>
-              </div>
-              <div className="sends-row control-pill-group">
-                 <Knob label="REV" min={-60} max={0} value={reverbSends.pad} onChange={v => handleReverbSendChange('pad', v)} size={28} />
-                 <Knob label="DLY" min={-60} max={0} value={delaySends.pad} onChange={v => handleDelaySendChange('pad', v)} size={28} />
-              </div>
-              <div className="eq-row control-pill-group">
-                 <Knob label="Lo" min={-12} max={12} value={eqGains.pad.low} onChange={v => handleEQChange('pad', 'low', v)} onDoubleClick={() => handleEQChange('pad', 'low', 0)} size={24} />
-                 <Knob label="Mid" min={-12} max={12} value={eqGains.pad.mid} onChange={v => handleEQChange('pad', 'mid', v)} onDoubleClick={() => handleEQChange('pad', 'mid', 0)} size={24} />
-                 <Knob label="Hi" min={-12} max={12} value={eqGains.pad.high} onChange={v => handleEQChange('pad', 'high', v)} onDoubleClick={() => handleEQChange('pad', 'high', 0)} size={24} />
-              </div>
-            </div>
-          </div>
-          <div className="track">
-            <div className="track-main">
-              <div className="knob-row">
-                <label className="vol-label">Vol: {volumes.pad}dB</label>
-                <input type="range" min="-60" max="0" step="1" value={volumes.pad} onChange={e => handleVolumeChange('pad', Number(e.target.value))} onWheel={(e) => handleVolumeWheel(e, 'pad')} />
+        <TrackRow
+          label="Pad"
+          instrument="pad"
+          className="pad-container"
+          mute={mutes.pad}
+          solo={solos.pad}
+          volume={volumes.pad}
+          reverbSend={reverbSends.pad}
+          delaySend={delaySends.pad}
+          eq={eqGains.pad}
+          onMute={() => handleMute('pad')}
+          onSolo={() => handleSolo('pad')}
+          onVolumeChange={(v) => handleVolumeChange('pad', v)}
+          onVolumeWheel={(e) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'pad')}
+          onReverbSendChange={(v) => handleReverbSendChange('pad', v)}
+          onDelaySendChange={(v) => handleDelaySendChange('pad', v)}
+          onEQChange={(band, v) => handleEQChange('pad', band, v)}
+          extraControls={
+            <>
+              <div className="param-item">
                 <label>Attack</label>
                 <input type="range" min="0.01" max="1.0" step="0.01" defaultValue="0.3" onChange={e => AudioEngine.setPadAttack(Number(e.target.value))} onWheel={handleSliderWheel} />
+              </div>
+              <div className="param-item">
                 <label>Release</label>
                 <input type="range" min="0.1" max="3.0" step="0.1" defaultValue="1.5" onChange={e => AudioEngine.setPadRelease(Number(e.target.value))} onWheel={handleSliderWheel} />
+              </div>
+              <div className="param-item">
                 <label>Filter</label>
                 <input type="range" min="100" max="8000" step="50" defaultValue="2000" onChange={e => AudioEngine.setPadFilterCutoff(Number(e.target.value))} onWheel={handleSliderWheel} />
-                <div className="break-row"></div>
+              </div>
+              <div className="param-item">
                 <label>Detune</label>
                 <input type="range" min="0" max="30" step="1" defaultValue="12" onChange={e => AudioEngine.setPadDetune(Number(e.target.value))} onWheel={handleSliderWheel} />
+              </div>
+              <div className="param-item">
                 <label>Distortion</label>
                 <input type="range" min="0" max="1" step="0.01" defaultValue="0" onChange={e => AudioEngine.setPadDistortion(Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
-              {/* Combined Step + Pitch + Voicing with quarter note grouping */}
-              <div className="pad-steps-container">
-                {[0, 1, 2, 3].map(groupIdx => (
-                  <div key={groupIdx} className="step-group pad-group">
-                    {[0, 1, 2, 3].map(stepInGroup => {
-                      const stepIndex = groupIdx * 4 + stepInGroup;
-                      const isActive = grid.pad[stepIndex];
-                      return (
-                        <div key={stepIndex} className="pad-step-wrapper">
-                          <div
-                            className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
-                            onMouseDown={() => handleStepMouseDown('pad', stepIndex)}
-                            onMouseEnter={() => handleStepMouseEnter('pad', stepIndex)}
-                          />
-                          <select 
-                            className="note-select"
-                            value={padPitches[stepIndex]}
-                            onChange={(e) => handlePadPitchChange(stepIndex, Number(e.target.value))}
-                            onWheel={(e) => handlePadNoteWheel(e, stepIndex)}
-                          >
-                            {/* C5 (72) to C2 (36) */}
-                            {Array.from({ length: 37 }, (_, i) => {
-                              const midi = 72 - i;
-                              const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-                              const octave = Math.floor(midi / 12) - 1;
-                              const noteName = noteNames[midi % 12];
-                              return (
-                                <option key={midi} value={midi}>
-                                  {noteName}{octave}
-                                </option>
-                              );
-                            })}
-                          </select>
-                          <select 
-                            className="voicing-select"
-                            value={padVoicings[stepIndex]}
-                            onChange={(e) => handlePadVoicingChange(stepIndex, e.target.value)}
-                          >
-                            {PAD_VOICING_OPTIONS.map(v => (
-                              <option key={v} value={v}>{v}</option>
-                            ))}
-                          </select>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
+            </>
+          }
+        >
+          {/* Combined Step + Pitch + Voicing with quarter note grouping */}
+          <div className="pad-steps-container">
+            {[0, 1, 2, 3].map(groupIdx => (
+              <div key={groupIdx} className="step-group pad-group">
+                {[0, 1, 2, 3].map(stepInGroup => {
+                  const stepIndex = groupIdx * 4 + stepInGroup;
+                  const isActive = grid.pad[stepIndex];
+                  return (
+                    <div key={stepIndex} className="pad-step-wrapper">
+                      <div
+                        className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
+                        onMouseDown={() => handleStepMouseDown('pad', stepIndex)}
+                        onMouseEnter={() => handleStepMouseEnter('pad', stepIndex)}
+                      />
+                      <select 
+                        className="note-select"
+                        value={padPitches[stepIndex]}
+                        onChange={(e) => handlePadPitchChange(stepIndex, Number(e.target.value))}
+                        onWheel={(e) => handlePadNoteWheel(e, stepIndex)}
+                      >
+                        {/* C5 (72) to C2 (36) */}
+                        {Array.from({ length: 37 }, (_, i) => {
+                          const midi = 72 - i;
+                          const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                          const octave = Math.floor(midi / 12) - 1;
+                          const noteName = noteNames[midi % 12];
+                          return (
+                            <option key={midi} value={midi}>
+                              {noteName}{octave}
+                            </option>
+                          );
+                        })}
+                      </select>
+                      <select 
+                        className="voicing-select"
+                        value={padVoicings[stepIndex]}
+                        onChange={(e) => handlePadVoicingChange(stepIndex, e.target.value)}
+                      >
+                        {PAD_VOICING_OPTIONS.map(v => (
+                          <option key={v} value={v}>{v}</option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
+            ))}
           </div>
-        </div>
+        </TrackRow>
 
       </div>
       

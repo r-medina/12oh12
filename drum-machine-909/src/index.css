@@ -375,9 +375,116 @@ h1 {
   white-space: nowrap;
 }
 
+/* ============================================
+   Track Row Refactor Styles
+   ============================================ */
+
+/* Ensure track container is always column */
+.track-container {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 10px; /* Compact padding */
+  gap: 4px; /* Tight gap between header and grid */
+}
+
+/* Header Row: Horizontal Control Bar */
+.track-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 42px;
+}
+
+/* Section 1: Identity (Label + M/S) */
+.track-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 110px;
+}
+
+.track-label {
+  min-width: 40px; /* Ensure alignment */
+}
+
+.mute-solo-group {
+  display: flex;
+  gap: 4px;
+}
+
+/* Section 2: Parameters (Vol + Custom) */
+.track-params {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  padding: 0 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.param-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start; /* Align labels to start of slider */
+}
+
+.param-item label {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-left: 2px;
+}
+
+.param-item input[type="range"] {
+  width: 90px;
+  height: 4px;
+}
+
+/* Section 3: Sends & EQ */
+.track-sends-eq {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sends-group {
+  display: flex;
+  gap: 8px;
+  margin-right: 8px;
+}
+
+.eq-group {
+  display: flex;
+  gap: 4px;
+}
+
+/* Grid Row */
+.track-grid-row {
+  width: 100%;
+  padding-top: 2px;
+  padding-left: 52px; /* Align with M/S buttons (Label 40px + Gap 12px) */
+}
+
+/* Ensure steps spread out nicely */
+/* Ensure steps stay together */
+.steps-container {
+  display: flex;
+  justify-content: flex-start; 
+}
+.bass-steps-container, .pad-steps-container {
+    display: flex;
+    justify-content: flex-start;
+}
+
+/* Helper for spacing */
 .break-row {
-  flex-basis: 100%;
-  height: 0;
+  display: none; /* No longer needed in new layout */
 }
 
 /* ============================================
