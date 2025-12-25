@@ -8,9 +8,13 @@ This document is designed to help an AI agent (or a human developer) quickly und
 drum-machine-909/
 ├── src/
 │   ├── audio/
-│   │   └── engine.ts       # 🔊 CORE AUDIO LOGIC. Tone.js setup, synths, and the main sequencer loop.
+│   │   ├── engine.ts       # 🔊 CORE AUDIO LOGIC. Tone.js setup, synths, effects chain (Tape, Compressor), and the main sequencer loop.
+│   │   └── tape.ts         # 📼 Tape saturation and compression chain implementation.
+│   ├── components/         # 🧱 UI Components (Visualizer, TrackRow, ProModeControls, PianoRoll, etc.)
+│   ├── utils/
+│   │   └── storage.ts      # 💾 Persistence logic (localStorage, import/export scenes).
 │   ├── App.tsx             # ⚛️ UI LAYER. React state, DOM controls, and interaction handlers.
-│   ├── types.ts            # 🏷️ SHARED TYPES. Instrument definitions and state interfaces.
+│   ├── types.ts            # 🏷️ SHARED TYPES. Instrument definitions, Scene interfaces, and state interfaces.
 │   ├── index.css           # 🎨 STYLING. Dark mode CSS vars and component styles.
 │   └── main.tsx            # Entry point.
 └── vite.config.ts          # Build config.
@@ -18,11 +22,11 @@ drum-machine-909/
 
 ## 🧠 Core Architecture (React + Tone.js)
 
-The app uses a **Unidirectional Data Flow** with a synchronized Audio Engine.
+The app uses a **Unidirectional Data Flow** with a synchronized Audio Engine, organized around a **Scene** data model.
 
-1.  **React (`App.tsx`)**: Holds the source of truth for the pattern (`grid`), playback state, UI toggles (Mute/Solo), and per-step parameters (e.g., `bassPitches`).
+1.  **React (`App.tsx`)**: Holds the `Scene[]` state. The active `Scene` object is the source of truth for the pattern (`grid`), playback state, UI toggles (Mute/Solo), parameters (Params), and Pro Mode settings.
 2.  **Audio Engine (`engine.ts`)**:
-    - **Stateless-ish**: It receives updates via methods like `updateGrid`, `setMute`, `updateBassPitches`.
+    - **Stateless-ish**: It receives updates via methods like `updateGrid`, `setMute`, `updateBassPitches`, `setProModeParams`.
     - **The Loop**: A `Tone.Sequence` runs every 16th note.
     - **Synchronization**: The loop triggers sound _and_ calls `Tone.Draw.schedule()` to update the UI (step highlighter) in sync with the audio beat.
 
@@ -33,182 +37,108 @@ Tone.js schedules audio in the future (`time` parameter).
 - **Audio**: Must use `synth.triggerAttackRelease(note, duration, time)`.
 - **Visuals**: Must use `Tone.Draw.schedule(callback, time)` to align with the audio.
 
+## 💾 Data Model: The `Scene` Object
+
+All persistent state is grouped into the `Scene` interface (`src/types.ts`). When adding new global or per-step state, it **must** be added here.
+
+```typescript
+export interface Scene {
+  name: string;
+  grid: Record<Instrument, boolean[]>; // Patterns
+  bassPitches: number[]; // 303 Per-step pitch
+  padPitches: number[]; // Pad Per-step pitch
+  padVoicings: string[]; // Pad Per-step voicing
+  polyNotes: number[][]; // Poly Per-step notes (Piano Roll)
+  velocities: Record<Instrument, number[]>; // Per-step velocity (0-127)
+  volumes: Record<Instrument, number>;
+  reverbSends: Record<Instrument, number>;
+  delaySends: Record<Instrument, number>;
+  eqGains: Record<Instrument, { low: number; mid: number; high: number }>;
+  params: InstrumentParams; // Synth parameters (ADSR, Filter, etc.)
+  mutes: Record<Instrument, boolean>;
+  solos: Record<Instrument, boolean>;
+  bpm: number;
+  swing: number;
+  proModeParams?: ProModeParams; // Master FX, Tape, Enablement
+}
+```
+
 ## 🎹 Current Instruments
 
-### Drum Synths (Kick, Snare, HiHat, Clap)
+| Instrument                           | Type                      | Key Features                                                                              |
+| :----------------------------------- | :------------------------ | :---------------------------------------------------------------------------------------- |
+| **Drums** (Kick, Snare, HiHat, Clap) | Tone.js Primitives        | Dedicated params (tune, decay, tone, snappy). Kick 909 has **Distortion**.                |
+| **Bass (303)**                       | `Tone.MonoSynth`          | Sawtooth, Lowpass Filter. **Per-step pitch** (C1-C4) via dropdowns.                       |
+| **Pad**                              | `Tone.PolySynth` (Unison) | Lush 3-voice unison. **Per-step pitch** & **Voicing** (chord types like 'minor', 'sus4'). |
+| **Poly**                             | `Tone.PolySynth`          | Square wave. **Piano Roll** interface for chords/melodies.                                |
 
-- Built with Tone.js primitives (MembraneSynth, NoiseSynth, MetalSynth)
-- Each has dedicated parameter controls (tune, decay, tone, etc.)
+## 🎛️ Audio Chain & Pro Mode
 
-### 303 Bass Synth
+The audio path includes a sophisticated effects chain managed via "Pro Mode":
 
-- **Type**: `Tone.MonoSynth` with sawtooth oscillator and lowpass filter
-- **Special Feature**: **Per-step pitch control** via dropdown selects
-- **State**: `bassPitches` array (16 MIDI note values, default C2/36)
-- **UI Pattern**: Each step has a `<select>` dropdown showing note names (C1-C4)
-- **Audio**: Uses `Tone.Frequency(midiNote, "midi").toFrequency()` to convert MIDI to Hz
+1.  **Channel Strips**: Volume -> 3-Band EQ -> Sends (Reverb/Delay).
+2.  **Sends**: Post-fader user-controllable sends to global Reverb and Delay.
+3.  **Master Bus**:
+    - `MasterCompressor` (Glue) ->
+    - `TapeChain` (Saturation + Compression + Lowpass) ->
+    - `Limiter` (Safety)
+
+**Pro Mode Features**:
+
+- **Track Enablement**: Disable tracks entirely to save CPU.
+- **Master FX**: detailed controls for Compressor, Reverb, Delay, and Tape Saturation.
 
 ## 🛠️ Common Tasks
 
 ### 1. Adding a New Instrument (e.g., "Cowbell")
 
-1.  **Update Types**: Add `'cowbell'` to `Instrument` type in `src/types.ts`.
-2.  **Initialize State**: In `src/App.tsx`, add default pattern, mute, and solo entries for `cowbell`.
+1.  **Update Types**: Add `'cowbell'` to `Instrument` type in `src/types.ts`. Update `Scene` and `InstrumentParams` if needed.
+2.  **Initialize State**: In `src/App.tsx`, add default grid, mute, solo, and volume constants.
 3.  **Create Synth**: In `src/audio/engine.ts`:
     - Create `const cowbell = new Tone.MetalSynth(...)`.
-    - Connect it to destination.
+    - Setup volume node, EQ, and sends (`createChannelEQ`, `connect(reverbPreFilter)`).
 4.  **Update Loop**: In `engine.ts` inside `Tone.Sequence`:
     - Add `if (shouldPlay('cowbell') && currentGrid.cowbell[step]) ...`
-5.  **Add UI**: In `src/App.tsx`, copy a `.track-container` block and update the mapping/handlers to use `'cowbell'`.
+    - Handle velocity: `getVel('cowbell')`.
+5.  **Expose Setters**: Add methods to `AudioEngine` object (e.g., `setCowbellDecay`).
+6.  **Add UI**: In `src/App.tsx`, add a `<TrackRow inst="cowbell" ... />`.
 
-### 2. Adding Per-Step Parameters (Like Bass Pitch)
+### 2. Adding a New Synth Parameter
 
-**Pattern used for 303 bass pitch control:**
+1.  **Update Types**: Add field to `InstrumentParams` in `src/types.ts`.
+2.  **Update Initial State**: Add default value in `INITIAL_PARAMS` in `src/App.tsx`.
+3.  **Engine Logic**:
+    - Create setter in `AudioEngine` (e.g., `setKickDistortion`).
+    - Wire it to the Tone.js node.
+4.  **UI Control**:
+    - Add `<ScrollableSlider>` or `<Knob>` in the instrument's controls section in `App.tsx`.
+    - Wire `onChange` to `handleParamChange`.
 
-1.  **State in App.tsx**:
+### 3. Adding Per-Step Data (e.g., Filter Cutoff Automation)
 
-    ```tsx
-    const [bassPitches, setBassPitches] = useState<number[]>(
-      new Array(16).fill(36),
-    );
-    ```
-
-2.  **Handler**:
-
-    ```tsx
-    const handleBassPitchChange = (stepIndex: number, val: number) => {
-      const newPitches = [...bassPitches];
-      newPitches[stepIndex] = val;
-      setBassPitches(newPitches);
-      AudioEngine.updateBassPitches(newPitches);
-    };
-    ```
-
-3.  **Engine Method** (`engine.ts`):
-
-    ```tsx
-    let currentBassPitches = new Array(16).fill(36);
-    export const updateBassPitches = (pitches: number[]) => {
-      currentBassPitches = pitches;
-    };
-    ```
-
-4.  **In Sequencer Loop**:
-
-    ```tsx
-    const freq = Tone.Frequency(currentBassPitches[step], "midi").toFrequency();
-    bass.triggerAttackRelease(freq, "16n", time);
-    ```
-
-5.  **UI** (dropdown select pattern):
-    ```tsx
-    <div className="bass-step-wrapper">
-      <div className="step" {...stepHandlers} />
-      <select
-        className="note-select"
-        value={bassPitches[stepIndex]}
-        onChange={(e) =>
-          handleBassPitchChange(stepIndex, Number(e.target.value))
-        }
-      >
-        {/* Generate options for MIDI 24-60 (C1-C4) */}
-        {Array.from({ length: 37 }, (_, i) => {
-          const midi = 24 + i;
-          const noteNames = [
-            "C",
-            "C#",
-            "D",
-            "D#",
-            "E",
-            "F",
-            "F#",
-            "G",
-            "G#",
-            "A",
-            "A#",
-            "B",
-          ];
-          const octave = Math.floor(midi / 12) - 1;
-          const noteName = noteNames[midi % 12];
-          return (
-            <option key={midi} value={midi}>
-              {noteName}
-              {octave}
-            </option>
-          );
-        })}
-      </select>
-    </div>
-    ```
-
-### 3. Adding a New Parameter Knob
-
-1.  **Expose Setter**: In `src/audio/engine.ts`:
-    - Add a function `setCowbellPitch(val: number)`.
-    - Update the synth instance inside that function.
-2.  **Add Control**: In `src/App.tsx`:
-    - Add an `<input type="range" ... onChange={e => AudioEngine.setCowbellPitch(Number(e.target.value))} />`.
-
-### 4. Modifying the Sequencer Logic
-
-- **Logic Location**: Inside `Tone.Sequence` callback in `src/audio/engine.ts`.
-- **State Access**: The loop uses local variables `currentGrid`, `currentMutes`, `currentSolos`, `currentBassPitches` which are updated via exported setters. **Do not** try to read React state directly inside the loop.
+1.  **Scene Update**: Add `filterAutomation: number[]` to `Scene` interface in `types.ts`.
+2.  **App State**: Add `const [filterAutomation, setFilterAutomation] = useState(...)` in `App.tsx`.
+3.  **Engine Sync**:
+    - Add global `let currentFilterAutomation = ...` in `engine.ts`.
+    - Add `updateFilterAutomation(data)` export.
+    - Call it in `handleStart` and inside `loadSceneState`.
+4.  **Sequencer Loop**:
+    - Inside `loop`, access `currentFilterAutomation[step]`.
+    - Apply to synth: `synth.filter.frequency.setValueAtTime(val, time)`.
 
 ## ⚠️ Gotchas
 
-- **Browsers & AudioContext**: AudioContext only starts after a user gesture. `App.tsx` handles this in `handleStart()`.
-- **React Re-renders**: The sequencer loop runs outside React's render cycle. We use `setStepCallback` to push the current step index back to React for the visualizer.
-- **Tone.js Imports**: Always check if a Tone.js class needs `.toDestination()` or `.connect()`.
-- **Per-Step State**: When adding per-step parameters, remember to sync them to the engine on `handleStart()` (see how `bassPitches` is synced).
+- **Context Start**: AudioContext only starts after user gesture. `handleStart()` handles this.
+- **React Re-renders**: The sequencer loop runs outside React. Do not read React state in the loop; use the synced variables in `engine.ts`.
+- **Performance**: Avoid heavy computations in the loop. Pre-calculate values if possible.
+- **Lookahead**: Always use `time` passed to the loop callback for scheduling audio, not `Tone.now()`.
+- **State Persistence**: If you add new state, you **MUST** add it to the `Scene` object and update `loadSceneState`/`saveScenes` or it will be lost on reload/scene switch.
 
 ## 📍 Key Locations
 
-- **Synths**: `src/audio/engine.ts` (Lines 1-80). Includes kick, snare, hihat, clap, and bass (303).
-- **Sequencer Loop**: `src/audio/engine.ts` (~Lines 100-150)
-- **Track UI Rendering**: `src/App.tsx` (Look for `.sequencer-grid`)
-- **Bass UI Pattern**: `src/App.tsx` (Search for `.bass-steps-container` and `.note-select`)
-- **Bass Styles**: `src/index.css` (Bottom section, "Bass 303 Per-Step Pitch")
-
-## 🎛️ 303 Bass Controls
-
-| Control          | Range      | Description                           |
-| ---------------- | ---------- | ------------------------------------- |
-| Cutoff           | 50-5000 Hz | Filter cutoff frequency               |
-| Res              | 0-20       | Filter resonance (Q factor)           |
-| Env Mod          | 0-8        | Envelope modulation depth on filter   |
-| Decay            | 0.1-2.0s   | Note and filter envelope decay time   |
-| Pitch (per-step) | C1-C4      | Individual note per step via dropdown |
-
-## 🎹 Pad Synth
-
-- **Type**: `Tone.PolySynth` with sine oscillator and lowpass filter
-- **Special Feature**: **Per-step note + chord voicing control** via dual dropdowns
-
-### Voicing Options
-
-| Voicing | Notes                |
-| ------- | -------------------- |
-| single  | Root only            |
-| octave  | Root + octave above  |
-| fifth   | Root + perfect fifth |
-| major   | Root + M3 + P5       |
-| minor   | Root + m3 + P5       |
-| sus2    | Root + M2 + P5       |
-| sus4    | Root + P4 + P5       |
-
-### Pad Controls
-
-| Control            | Range       | Description                         |
-| ------------------ | ----------- | ----------------------------------- |
-| Attack             | 0.01-1.0s   | Envelope attack time                |
-| Release            | 0.1-3.0s    | Envelope release time               |
-| Filter             | 100-8000 Hz | Lowpass filter cutoff               |
-| Note (per-step)    | C2-C5       | Root note per step via dropdown     |
-| Voicing (per-step) | (see above) | Chord voicing per step via dropdown |
-
-### Key Locations
-
-- **Pad Synth**: `src/audio/engine.ts` (Search for `Pad Synth`)
-- **Pad State**: `src/App.tsx` (Search for `padPitches`, `padVoicings`)
-- **Pad UI**: `src/App.tsx` (Search for `pad-container`)
-- **Pad Styles**: `src/index.css` (Search for `Pad Synth Styles`)
+- **Synths & Audio Graph**: `src/audio/engine.ts`
+- **Scene Data Structure**: `src/types.ts`
+- **Main UI**: `src/App.tsx`
+- **Track UI**: `src/components/TrackRow.tsx`
+- **Piano Roll**: `src/components/PianoRoll.tsx`
+- **Pro Mode Controls**: `src/components/ProModeControls.tsx`

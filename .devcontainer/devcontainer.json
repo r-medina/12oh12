@@ -1,0 +1,25 @@
+{
+        "name": "drum-machine-909",
+        "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+        "features": {
+                "ghcr.io/devcontainers/features/node:1": {}
+        },
+        "forwardPorts": [
+                5173
+        ],
+        "portsAttributes": {
+                "5173": {
+                        "label": "Vite Dev Server",
+                        "onAutoForward": "notify"
+                }
+        },
+        "postCreateCommand": "npm install",
+        "customizations": {
+                "vscode": {
+                        "extensions": [
+                                "dbaeumer.vscode-eslint",
+                                "esbenp.prettier-vscode"
+                        ]
+                }
+        }
+}
