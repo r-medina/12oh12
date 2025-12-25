@@ -3,7 +3,7 @@ import type { Instrument } from '../types';
 import { TapeChain } from './tape';
 
 // -- Analyser & Master --
-const analyser = new Tone.Analyser('fft', 64);
+const analyser = new Tone.Analyser('fft', 256);
 const masterVol = new Tone.Volume(0);
 const tapeChain = new TapeChain();
 const meter = new Tone.Meter();
@@ -24,60 +24,111 @@ meter.toDestination();
 
 
 // -- Effects --
+// High-pass filter BEFORE sends (150Hz) - prevents low-end mud in effects
+const sendPreFilter = new Tone.Filter(150, "highpass");
+
 const reverb = new Tone.Reverb({
   decay: 4.0,
   preDelay: 0.05,
   wet: 1.0 // Send effect, so full wet on the bus
 });
-const reverbFilter = new Tone.Filter(600, "highpass");
-reverb.chain(reverbFilter, masterVol);
+const reverbToneFilter = new Tone.Filter(600, "highpass"); // Existing tone shaping
+const reverbPostFilter = new Tone.Filter(95, "highpass"); // Post-effect HPF
+sendPreFilter.connect(reverb);
+reverb.chain(reverbToneFilter, reverbPostFilter, masterVol);
 reverb.generate(); // Required for Reverb to start working
 
 const delay = new Tone.FeedbackDelay({
   delayTime: "8n.",
   feedback: 0.4,
   wet: 1.0 // Send effect
-}).connect(masterVol);
+});
+const delayPostFilter = new Tone.Filter(95, "highpass"); // Post-effect HPF
+sendPreFilter.connect(delay);
+delay.chain(delayPostFilter, masterVol);
 
 // -- Volume Nodes --
 // Connect individual channels to masterVol instead of Destination
-const kickVol = new Tone.Volume(0).connect(masterVol);
-const snareVol = new Tone.Volume(0).connect(masterVol);
-const hihatVol = new Tone.Volume(0).connect(masterVol);
-const clapVol = new Tone.Volume(0).connect(masterVol);
-const bassVol = new Tone.Volume(0).connect(masterVol);
-const padVol = new Tone.Volume(0).connect(masterVol);
+const kickVol = new Tone.Volume(0);
+const snareVol = new Tone.Volume(0);
+const hihatVol = new Tone.Volume(0);
+const clapVol = new Tone.Volume(0);
+const bassVol = new Tone.Volume(0);
+const padVol = new Tone.Volume(0);
+
+// -- 3-Band EQ Per Channel --
+// EQ bands: Low shelf 300Hz, Mid peaking 1kHz, High shelf 3kHz
+// Each with adjustable gain (-12dB to +12dB)
+
+interface ChannelEQ {
+  low: Tone.Filter;
+  mid: Tone.Filter;
+  high: Tone.Filter;
+  lowGain: Tone.Gain;
+  midGain: Tone.Gain;
+  highGain: Tone.Gain;
+}
+
+const createChannelEQ = (inputNode: Tone.Volume): ChannelEQ => {
+  // Low shelf filter (300Hz)
+  const low = new Tone.Filter({ type: 'lowshelf', frequency: 300, gain: 0 });
+  // Mid peaking filter (1kHz)  
+  const mid = new Tone.Filter({ type: 'peaking', frequency: 1000, Q: 1, gain: 0 });
+  // High shelf filter (3kHz)
+  const high = new Tone.Filter({ type: 'highshelf', frequency: 3000, gain: 0 });
+  
+  // Gains for each band (since Filter.gain may not be adjustable post-creation in all modes)
+  const lowGain = new Tone.Gain(1);
+  const midGain = new Tone.Gain(1);
+  const highGain = new Tone.Gain(1);
+  
+  // Chain: inputNode -> low -> mid -> high -> masterVol
+  inputNode.connect(low);
+  low.connect(mid);
+  mid.connect(high);
+  high.connect(masterVol);
+  
+  return { low, mid, high, lowGain, midGain, highGain };
+};
+
+// Create EQ for each channel
+const kickEQ = createChannelEQ(kickVol);
+const snareEQ = createChannelEQ(snareVol);
+const hihatEQ = createChannelEQ(hihatVol);
+const clapEQ = createChannelEQ(clapVol);
+const bassEQ = createChannelEQ(bassVol);
+const padEQ = createChannelEQ(padVol);
+
 
 // -- Send Nodes --
-// We create a specific Gain node for each send to control the level
-// Connect Channel Volume -> Send Gain -> Effect Bus
-const kickReverbSend = new Tone.Gain(0).connect(reverb);
-const kickDelaySend = new Tone.Gain(0).connect(delay);
+// Connect Channel Volume -> Send Gain -> Pre-Filter (150Hz HPF) -> Effects
+const kickReverbSend = new Tone.Gain(0).connect(sendPreFilter);
+const kickDelaySend = new Tone.Gain(0).connect(sendPreFilter);
 kickVol.connect(kickReverbSend);
 kickVol.connect(kickDelaySend);
 
-const snareReverbSend = new Tone.Gain(0).connect(reverb);
-const snareDelaySend = new Tone.Gain(0).connect(delay);
+const snareReverbSend = new Tone.Gain(0).connect(sendPreFilter);
+const snareDelaySend = new Tone.Gain(0).connect(sendPreFilter);
 snareVol.connect(snareReverbSend);
 snareVol.connect(snareDelaySend);
 
-const hihatReverbSend = new Tone.Gain(0).connect(reverb);
-const hihatDelaySend = new Tone.Gain(0).connect(delay);
+const hihatReverbSend = new Tone.Gain(0).connect(sendPreFilter);
+const hihatDelaySend = new Tone.Gain(0).connect(sendPreFilter);
 hihatVol.connect(hihatReverbSend);
 hihatVol.connect(hihatDelaySend);
 
-const clapReverbSend = new Tone.Gain(0).connect(reverb);
-const clapDelaySend = new Tone.Gain(0).connect(delay);
+const clapReverbSend = new Tone.Gain(0).connect(sendPreFilter);
+const clapDelaySend = new Tone.Gain(0).connect(sendPreFilter);
 clapVol.connect(clapReverbSend);
 clapVol.connect(clapDelaySend);
 
-const bassReverbSend = new Tone.Gain(0).connect(reverb);
-const bassDelaySend = new Tone.Gain(0).connect(delay);
+const bassReverbSend = new Tone.Gain(0).connect(sendPreFilter);
+const bassDelaySend = new Tone.Gain(0).connect(sendPreFilter);
 bassVol.connect(bassReverbSend);
 bassVol.connect(bassDelaySend);
 
-const padReverbSend = new Tone.Gain(0).connect(reverb);
-const padDelaySend = new Tone.Gain(0).connect(delay);
+const padReverbSend = new Tone.Gain(0).connect(sendPreFilter);
+const padDelaySend = new Tone.Gain(0).connect(sendPreFilter);
 padVol.connect(padReverbSend);
 padVol.connect(padDelaySend);
 
@@ -137,7 +188,15 @@ const clap = new Tone.NoiseSynth({
     decay: 0.3,
     sustain: 0
   }
+});
+
+const clapFilter = new Tone.Filter({
+  type: "bandpass",
+  frequency: 1500,
+  Q: 1
 }).connect(clapVol);
+
+clap.connect(clapFilter);
 
 // -- 303 Bass Synth --
 const bass = new Tone.MonoSynth({
@@ -161,8 +220,9 @@ const bass = new Tone.MonoSynth({
   }
 }).connect(bassVol);
 
-// -- Pad Synth (PolySynth for chords) --
+// -- Pad Synth (PolySynth with Unison for chords) --
 type PadVoicing = 'single' | 'octave' | 'fifth' | 'major' | 'minor' | 'sus2' | 'sus4';
+
 
 const getChordNotes = (root: number, voicing: PadVoicing): string[] => {
   let midiNotes: number[];
@@ -179,10 +239,12 @@ const getChordNotes = (root: number, voicing: PadVoicing): string[] => {
   return midiNotes.map(m => Tone.Frequency(m, 'midi').toNote());
 };
 
+
+
 // Distortion for Pad
 const padDistortion = new Tone.Distortion({
-  distortion: 0, // 0-1, will be controlled by setPadDistortion
-  wet: 1.0 // Full wet since it's in series
+  distortion: 0,
+  wet: 1.0
 });
 
 const padFilter = new Tone.Filter({
@@ -191,20 +253,41 @@ const padFilter = new Tone.Filter({
   Q: 1
 }).connect(padVol);
 
-const pad = new Tone.PolySynth(Tone.Synth, {
-  oscillator: {
-    type: 'sine'
-  },
-  envelope: {
-    attack: 0.3,
-    decay: 0.5,
-    sustain: 0.8,
-    release: 1.5
-  }
+// Unison: 3 detuned voices for lush sound
+const padEnvelopeSettings = {
+  attack: 0.3,
+  decay: 0.5,
+  sustain: 0.8,
+  release: 1.5
+};
+
+const padVoice1 = new Tone.PolySynth(Tone.Synth, {
+  oscillator: { type: 'sine' },
+  envelope: padEnvelopeSettings
 }).connect(padDistortion);
 
-// Chain: pad -> distortion -> filter -> volume
+const padVoice2 = new Tone.PolySynth(Tone.Synth, {
+  oscillator: { type: 'sine' },
+  envelope: padEnvelopeSettings
+}).connect(padDistortion);
+padVoice2.set({ detune: 12 }); // +12 cents
+
+const padVoice3 = new Tone.PolySynth(Tone.Synth, {
+  oscillator: { type: 'sine' },
+  envelope: padEnvelopeSettings
+}).connect(padDistortion);
+padVoice3.set({ detune: -12 }); // -12 cents
+
+// Chain: padVoices -> distortion -> filter -> volume
 padDistortion.connect(padFilter);
+
+
+// Trigger all pad voices (unison)
+const triggerPadVoices = (notes: string[], duration: string, time: number) => {
+  padVoice1.triggerAttackRelease(notes, duration, time);
+  padVoice2.triggerAttackRelease(notes, duration, time);
+  padVoice3.triggerAttackRelease(notes, duration, time);
+};
 
 // Keep track of per-step bass pitches (MIDI note numbers, default C2=36)
 let currentBassPitches: number[] = new Array(16).fill(36);
@@ -263,7 +346,7 @@ const loop = new Tone.Sequence(
     // Trigger Pad
     if (shouldPlay('pad') && currentGrid.pad[step]) {
       const chordNotes = getChordNotes(currentPadPitches[step], currentPadVoicings[step]);
-      pad.triggerAttackRelease(chordNotes, '8n', time);
+      triggerPadVoices(chordNotes, '8n', time);
     }
 
     // 2. Update UI
@@ -304,6 +387,9 @@ export const AudioEngine = {
   togglePlay: (isPlaying: boolean) => {
     if (isPlaying) {
       if (Tone.context.state !== 'running') Tone.start();
+      // Guard against double-start
+      if (loop.state === 'started') return;
+      
       Tone.Transport.start();
       loop.start(0);
     } else {
@@ -316,6 +402,17 @@ export const AudioEngine = {
 
   onStep: (cb: (step: number) => void) => {
     setStepCallback = cb;
+  },
+
+  resetMutesSolos: () => {
+    // Reset internal engine state for mutes/solos to defaults
+    // This allows a clean sync from React
+    Object.keys(currentMutes).forEach(k => {
+        currentMutes[k as Instrument] = false;
+    });
+    Object.keys(currentSolos).forEach(k => {
+        currentSolos[k as Instrument] = false;
+    });
   },
 
   // -- Parameters --
@@ -353,6 +450,9 @@ export const AudioEngine = {
   setClapDecay: (val: number) => {
     clap.envelope.decay = val;
   },
+  setClapTone: (val: number) => {
+    clapFilter.frequency.value = val;
+  },
 
   // Bass (303) Controls
   setBassCutoff: (val: number) => {
@@ -385,16 +485,44 @@ export const AudioEngine = {
 
   // Pad Controls
   setPadAttack: (val: number) => {
-    pad.set({ envelope: { attack: val } });
+    padVoice1.set({ envelope: { attack: val } });
+    padVoice2.set({ envelope: { attack: val } });
+    padVoice3.set({ envelope: { attack: val } });
   },
   setPadRelease: (val: number) => {
-    pad.set({ envelope: { release: val } });
+    padVoice1.set({ envelope: { release: val } });
+    padVoice2.set({ envelope: { release: val } });
+    padVoice3.set({ envelope: { release: val } });
   },
   setPadFilterCutoff: (val: number) => {
     padFilter.frequency.value = val;
   },
   setPadDistortion: (val: number) => {
     padDistortion.distortion = val;
+  },
+  setPadDetune: (cents: number) => {
+    padVoice2.set({ detune: cents });
+    padVoice3.set({ detune: -cents });
+  },
+
+  // 3-Band EQ Per Channel
+  // band: 'low' | 'mid' | 'high', val: gain in dB (-12 to +12)
+  setChannelEQ: (inst: Instrument, band: 'low' | 'mid' | 'high', val: number) => {
+    const eqMap: Record<string, ChannelEQ> = {
+      kick: kickEQ,
+      snare: snareEQ,
+      hihat: hihatEQ,
+      clap: clapEQ,
+      bass: bassEQ,
+      pad: padEQ
+    };
+    const eq = eqMap[inst];
+    if (!eq) return;
+    
+    // Tone.Filter with shelf/peaking types supports .gain property
+    if (band === 'low') eq.low.set({ gain: val });
+    if (band === 'mid') eq.mid.set({ gain: val });
+    if (band === 'high') eq.high.set({ gain: val });
   },
 
   // Volume

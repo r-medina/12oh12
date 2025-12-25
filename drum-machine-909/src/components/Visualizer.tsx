@@ -1,26 +1,28 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AudioEngine } from '../audio/engine';
 
-export function Visualizer() {
+interface VisualizerProps {
+  theme: 'day' | 'night';
+}
+
+export function Visualizer({ theme }: VisualizerProps) {
+  const [on, setOn] = useState(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    let animationId: number;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Matrix configuration
-    const cols = 32; // Number of frequency bands
-    const rows = 8;  // Height resolution
-    const gap = 2;   // Gap between pixels
-    
-    // Calculate sizing based on matrix
+    // Sizing needs to be set regardless of ON/OFF state 
+    // so the blank canvas is the right size
+    const cols = 32;
+    const rows = 8;
+    const gap = 2;
     const pixelSize = 4;
-    // Add extra columns for Master meter (gap + master bar)
-    const masterCols = 2; // Gap + Meter
+    const masterCols = 2;
     const totalCols = cols + masterCols;
     
     const width = totalCols * (pixelSize + gap) + gap;
@@ -28,6 +30,15 @@ export function Visualizer() {
     
     canvas.width = width;
     canvas.height = height;
+
+    const style = getComputedStyle(document.documentElement);
+    const bgPrimary = style.getPropertyValue('--bg-tertiary').trim() || '#1e1e1e';
+    
+    // Clear / Background
+    ctx.fillStyle = bgPrimary;
+    ctx.fillRect(0, 0, width, height);
+
+    // Removed early return to keep loop running for Master Meter
 
     // Helper to parse color strings
     const parseColor = (color: string) => {
@@ -55,115 +66,143 @@ export function Visualizer() {
       return { r: 255, g: 87, b: 34 }; // Default TE Orange
     };
 
-    const draw = () => {
-      const values = AudioEngine.getFrequencyData();
+    let animationId: number;
+    let lastDrawTime = 0;
+    const targetFps = 10;
+    const frameInterval = 1000 / targetFps;
+
+    // Cache computed styles outside draw loop for performance
+    const accentColorStr = style.getPropertyValue('--accent-primary').trim() || '#ff5722';
+    const inactiveColor = style.getPropertyValue('--step-off').trim() || '#2a2a2a';
+    const accentRGB = parseColor(accentColorStr);
+    const darkRedRGB = { r: 180, g: 20, b: 20 };
+
+    const getPixelColor = (r: number, isClipping: boolean) => {
+      const factor = r / (rows - 1);
+      
+      if (isClipping && r === rows - 1) {
+         return 'rgb(255, 0, 0)';
+      }
+
+      const currR = Math.round(accentRGB.r + factor * (darkRedRGB.r - accentRGB.r));
+      const currG = Math.round(accentRGB.g + factor * (darkRedRGB.g - accentRGB.g));
+      const currB = Math.round(accentRGB.b + factor * (darkRedRGB.b - accentRGB.b));
+      
+      return `rgb(${currR}, ${currG}, ${currB})`;
+    };
+
+    const draw = (timestamp: number) => {
+      animationId = requestAnimationFrame(draw);
+
+      const elapsed = timestamp - lastDrawTime;
+      if (elapsed < frameInterval) return;
+
+      lastDrawTime = timestamp - (elapsed % frameInterval);
+
       const masterLevelDb = AudioEngine.getMasterLevel() as number;
-      
-      // Get theme colors
-      const style = getComputedStyle(document.documentElement);
-      const bgPrimary = style.getPropertyValue('--bg-tertiary').trim() || '#1e1e1e';
-      const accentColorStr = style.getPropertyValue('--accent-primary').trim() || '#ff5722';
-      const inactiveColor = style.getPropertyValue('--step-off').trim() || '#2a2a2a';
-      
-      const accentRGB = parseColor(accentColorStr);
-      // Dark Red for the top/clipping pixels
-      const darkRedRGB = { r: 180, g: 20, b: 20 };
 
       // Clear
       ctx.fillStyle = bgPrimary;
       ctx.fillRect(0, 0, width, height);
 
-      const getPixelColor = (r: number, isClipping: boolean) => {
-        // factor 0 at bottom, 1 at top
-        const factor = r / (rows - 1);
+      // Draw Frequency Bars (ONLY IF ON)
+      if (on) {
+        const values = AudioEngine.getFrequencyData();
         
-        // If we are clipping at the very top, make it even more intense/pure red
-        if (isClipping && r === rows - 1) {
-           return 'rgb(255, 0, 0)';
-        }
-
-        const currR = Math.round(accentRGB.r + factor * (darkRedRGB.r - accentRGB.r));
-        const currG = Math.round(accentRGB.g + factor * (darkRedRGB.g - accentRGB.g));
-        const currB = Math.round(accentRGB.b + factor * (darkRedRGB.b - accentRGB.b));
-        
-        return `rgb(${currR}, ${currG}, ${currB})`;
-      };
-
-      if (values instanceof Float32Array || values instanceof Uint8Array) {
-        const binCount = values.length;
-        
-        // Draw Frequency Bars
-        for (let c = 0; c < cols; c++) {
-          const binIndex = Math.floor(c * (binCount / cols));
-          const val = values[binIndex];
-          
-          const minDb = -80;
-          const maxDb = -20;
-          let normalized = (val - minDb) / (maxDb - minDb);
-          normalized = Math.max(0, Math.min(1, normalized));
-          
-          const litPixels = Math.floor(normalized * rows);
-
-          for (let r = 0; r < rows; r++) {
-            const y = height - ((r + 1) * (pixelSize + gap));
-            const x = gap + c * (pixelSize + gap);
+        if (values instanceof Float32Array || values instanceof Uint8Array) {
+          const binCount = values.length;
+          for (let c = 0; c < cols; c++) {
+            // Logarithmic x-axis
+            const minBin = 1;
+            const maxBin = binCount - 1;
+            const binIndex = Math.floor(minBin * Math.pow(maxBin / minBin, c / (cols - 1)));
+            const val = values[binIndex];
             
-            if (r < litPixels) {
-              const color = getPixelColor(r, false);
-              ctx.fillStyle = color;
-              ctx.shadowColor = color;
-              ctx.shadowBlur = 1;
-            } else {
-              // Inactive pixel
-              ctx.fillStyle = inactiveColor;
-              ctx.shadowBlur = 0;
-            }
+            const minDb = -80;
+            const maxDb = -20;
+            let normalized = (val - minDb) / (maxDb - minDb);
+            normalized = Math.max(0, Math.min(1, normalized));
             
-            ctx.fillRect(x, y, pixelSize, pixelSize);
-          }
-          ctx.shadowBlur = 0;
-        }
+            const litPixels = Math.floor(normalized * rows);
 
-        // Draw Master Meter
-        const masterXStart = (cols + 1) * (pixelSize + gap) + gap;
-        
-        const masterMin = -60;
-        const masterMax = 0;
-        let masterNorm = (masterLevelDb - masterMin) / (masterMax - masterMin);
-        masterNorm = Math.max(0, Math.min(1.2, masterNorm)); 
-
-        const masterLit = Math.floor(masterNorm * rows);
-        const isMasterClipping = masterLevelDb > -0.5;
-
-        for (let r = 0; r < rows; r++) {
-            const y = height - ((r + 1) * (pixelSize + gap));
-            const x = masterXStart;
-            
-            if (r < masterLit) {
-                 const color = getPixelColor(r, isMasterClipping);
-                 ctx.fillStyle = color;
-                 ctx.shadowColor = color;
-                 ctx.shadowBlur = 1;
-            } else {
+            for (let r = 0; r < rows; r++) {
+              const y = height - ((r + 1) * (pixelSize + gap));
+              const x = gap + c * (pixelSize + gap);
+              
+              if (r < litPixels) {
+                const color = getPixelColor(r, false);
+                ctx.fillStyle = color;
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 1;
+              } else {
                 ctx.fillStyle = inactiveColor;
                 ctx.shadowBlur = 0;
+              }
+              
+              ctx.fillRect(x, y, pixelSize, pixelSize);
             }
-            ctx.fillRect(x, y, pixelSize, pixelSize);
+            ctx.shadowBlur = 0;
+          }
         }
-        ctx.shadowBlur = 0;
+      } else {
+         // If OFF, draw inactive grid for consistent aesthetics
+         for (let c = 0; c < cols; c++) {
+            for (let r = 0; r < rows; r++) {
+              const y = height - ((r + 1) * (pixelSize + gap));
+              const x = gap + c * (pixelSize + gap);
+              ctx.fillStyle = inactiveColor;
+              ctx.fillRect(x, y, pixelSize, pixelSize);
+            }
+         }
       }
 
-      animationId = requestAnimationFrame(draw);
+      // Draw Master Meter (ALWAYS)
+      const masterXStart = (cols + 1) * (pixelSize + gap) + gap;
+      
+      const masterMin = -60;
+      const masterMax = 0;
+      let masterNorm = (masterLevelDb - masterMin) / (masterMax - masterMin);
+      masterNorm = Math.max(0, Math.min(1.2, masterNorm)); 
+
+      const masterLit = Math.floor(masterNorm * rows);
+      const isMasterClipping = masterLevelDb > -0.5;
+
+      for (let r = 0; r < rows; r++) {
+          const y = height - ((r + 1) * (pixelSize + gap));
+          const x = masterXStart;
+          
+          if (r < masterLit) {
+               const color = getPixelColor(r, isMasterClipping);
+               ctx.fillStyle = color;
+               ctx.shadowColor = color;
+               ctx.shadowBlur = 1;
+          } else {
+              ctx.fillStyle = inactiveColor;
+              ctx.shadowBlur = 0;
+          }
+          ctx.fillRect(x, y, pixelSize, pixelSize);
+      }
+      ctx.shadowBlur = 0;
     };
 
-    draw();
+    animationId = requestAnimationFrame(draw);
 
     return () => cancelAnimationFrame(animationId);
-  }, []);
+  }, [on, theme]);
 
   return (
-    <div className="visualizer-container">
+    <div className="visualizer-container" style={{ position: 'relative' }}>
       <canvas ref={canvasRef} className="visualizer-canvas" />
+      <div 
+        className={`visualizer-toggle ${on ? 'active' : ''}`} 
+        onClick={() => setOn(!on)}
+        title="Toggle Frequency Visualizer"
+      >
+        <span className="visualizer-toggle-label">FFT</span>
+        <div className="visualizer-toggle-track">
+          <div className="visualizer-toggle-thumb" />
+        </div>
+      </div>
     </div>
   );
 }

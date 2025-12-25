@@ -8,6 +8,7 @@ interface KnobProps {
   label?: string;
   size?: number;
   step?: number;
+  onDoubleClick?: () => void;
 }
 
 export const Knob: React.FC<KnobProps> = ({ 
@@ -17,7 +18,8 @@ export const Knob: React.FC<KnobProps> = ({
   onChange, 
   label, 
   size = 36,
-  step = 1
+  step = 1,
+  onDoubleClick
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const startY = useRef<number>(0);
@@ -82,6 +84,7 @@ export const Knob: React.FC<KnobProps> = ({
       <div 
         className="knob-control" 
         onMouseDown={handleMouseDown}
+        onDoubleClick={onDoubleClick}
         style={{ 
           width: size, 
           height: size, 

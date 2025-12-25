@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { AudioEngine } from './audio/engine';
 import { Visualizer } from './components/Visualizer';
 import { Knob } from './components/Knob';
@@ -35,6 +35,18 @@ const INITIAL_DELAY_SENDS: Record<Instrument, number> = {
   kick: -60, snare: -60, hihat: -60, clap: -60, bass: -60, pad: -60,
   kick909: -60, snare909: -60, hihat909: -60, clap909: -60
 };
+const INITIAL_EQ_GAINS: Record<Instrument, { low: number; mid: number; high: number }> = {
+  kick: { low: 0, mid: 0, high: 0 },
+  snare: { low: 0, mid: 0, high: 0 },
+  hihat: { low: 0, mid: 0, high: 0 },
+  clap: { low: 0, mid: 0, high: 0 },
+  bass: { low: 0, mid: 0, high: 0 },
+  pad: { low: 0, mid: 0, high: 0 },
+  kick909: { low: 0, mid: 0, high: 0 },
+  snare909: { low: 0, mid: 0, high: 0 },
+  hihat909: { low: 0, mid: 0, high: 0 },
+  clap909: { low: 0, mid: 0, high: 0 }
+};
 
 function App() {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -50,9 +62,10 @@ function App() {
   const [volumes, setVolumes] = useState(INITIAL_VOLUMES);
   const [reverbSends, setReverbSends] = useState(INITIAL_REVERB_SENDS);
   const [delaySends, setDelaySends] = useState(INITIAL_DELAY_SENDS);
+  const [eqGains, setEqGains] = useState(INITIAL_EQ_GAINS);
 
   // Theme effect
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
@@ -63,6 +76,7 @@ function App() {
   // Refs for drag-to-toggle
   const isDrawing = useRef(false);
   const drawMode = useRef(true); // true = turning on, false = turning off
+  const isStarting = useRef(false); // Mutex for start/stop
 
   useEffect(() => {
     // Determine if audio is actually ready? 
@@ -75,34 +89,54 @@ function App() {
   }, []);
 
   const handleStart = async () => {
-    if (!isAudioReady) {
-      await AudioEngine.init();
-      setIsAudioReady(true);
+    if (isStarting.current) return;
+    isStarting.current = true;
+
+    try {
+      if (!isAudioReady) {
+        await AudioEngine.init();
+        setIsAudioReady(true);
+      }
+      
+      const targetState = !isPlaying;
+
+      if (targetState) {
+          // WE ARE STARTING
+          // 1. Reset critical engine state
+          AudioEngine.resetMutesSolos(); // Ensure no ghost solos persist
+          
+          // 2. Sync everything fresh
+          AudioEngine.setBpm(bpm);
+          AudioEngine.updateGrid(grid);
+          
+          (Object.keys(mutes) as Instrument[]).forEach(inst => {
+              AudioEngine.setMute(inst, mutes[inst]);
+              AudioEngine.setSolo(inst, solos[inst]);
+              AudioEngine.setVolume(inst, volumes[inst]);
+              AudioEngine.setReverbSend(inst, reverbSends[inst]);
+              AudioEngine.setDelaySend(inst, delaySends[inst]);
+              
+              const eq = eqGains[inst];
+              AudioEngine.setChannelEQ(inst, 'low', eq.low);
+              AudioEngine.setChannelEQ(inst, 'mid', eq.mid);
+              AudioEngine.setChannelEQ(inst, 'high', eq.high);
+          });
+          AudioEngine.updateBassPitches(bassPitches);
+          AudioEngine.updatePadPitches(padPitches);
+          AudioEngine.updatePadVoicings(padVoicings);
+
+          AudioEngine.onStep((step) => {
+            setCurrentStep(step);
+          });
+      }
+
+      setIsPlaying(targetState);
+      AudioEngine.togglePlay(targetState);
+    } finally {
+        isStarting.current = false;
     }
-    
-    // Sync initial state
-    AudioEngine.setBpm(bpm);
-    AudioEngine.updateGrid(grid);
-    // Sync mutes/solos/volume
-    (Object.keys(mutes) as Instrument[]).forEach(inst => {
-        AudioEngine.setMute(inst, mutes[inst]);
-        AudioEngine.setSolo(inst, solos[inst]);
-        AudioEngine.setVolume(inst, volumes[inst]);
-        AudioEngine.setReverbSend(inst, reverbSends[inst]);
-        AudioEngine.setDelaySend(inst, delaySends[inst]);
-    });
-    AudioEngine.updateBassPitches(bassPitches);
-    AudioEngine.updatePadPitches(padPitches);
-    AudioEngine.updatePadVoicings(padVoicings);
-
-    AudioEngine.onStep((step) => {
-      setCurrentStep(step);
-    });
-
-    const targetState = !isPlaying;
-    setIsPlaying(targetState);
-    AudioEngine.togglePlay(targetState);
   };
+
 
   const setStepState = (inst: Instrument, stepIndex: number, isActive: boolean) => {
     // Avoid unnecessary state updates
@@ -159,6 +193,12 @@ function App() {
   const handleDelaySendChange = (inst: Instrument, val: number) => {
     setDelaySends({ ...delaySends, [inst]: val });
     AudioEngine.setDelaySend(inst, val);
+  };
+
+  const handleEQChange = (inst: Instrument, band: 'low' | 'mid' | 'high', val: number) => {
+    const newGains = { ...eqGains, [inst]: { ...eqGains[inst], [band]: val } };
+    setEqGains(newGains);
+    AudioEngine.setChannelEQ(inst, band, val);
   };
 
   const handleVolumeWheel = (e: React.WheelEvent<HTMLInputElement>, inst: Instrument) => {
@@ -345,6 +385,11 @@ function App() {
                  <Knob label="REV" min={-60} max={0} value={reverbSends.kick} onChange={v => handleReverbSendChange('kick', v)} size={28} />
                  <Knob label="DLY" min={-60} max={0} value={delaySends.kick} onChange={v => handleDelaySendChange('kick', v)} size={28} />
               </div>
+              <div className="eq-row">
+                 <Knob label="Lo" min={-12} max={12} value={eqGains.kick.low} onChange={v => handleEQChange('kick', 'low', v)} onDoubleClick={() => handleEQChange('kick', 'low', 0)} size={24} />
+                 <Knob label="Mid" min={-12} max={12} value={eqGains.kick.mid} onChange={v => handleEQChange('kick', 'mid', v)} onDoubleClick={() => handleEQChange('kick', 'mid', 0)} size={24} />
+                 <Knob label="Hi" min={-12} max={12} value={eqGains.kick.high} onChange={v => handleEQChange('kick', 'high', v)} onDoubleClick={() => handleEQChange('kick', 'high', 0)} size={24} />
+              </div>
             </div>
           </div>
           <div className="track">
@@ -391,6 +436,11 @@ function App() {
               <div className="sends-row">
                  <Knob label="REV" min={-60} max={0} value={reverbSends.snare} onChange={v => handleReverbSendChange('snare', v)} size={28} />
                  <Knob label="DLY" min={-60} max={0} value={delaySends.snare} onChange={v => handleDelaySendChange('snare', v)} size={28} />
+              </div>
+              <div className="eq-row">
+                 <Knob label="Lo" min={-12} max={12} value={eqGains.snare.low} onChange={v => handleEQChange('snare', 'low', v)} onDoubleClick={() => handleEQChange('snare', 'low', 0)} size={24} />
+                 <Knob label="Mid" min={-12} max={12} value={eqGains.snare.mid} onChange={v => handleEQChange('snare', 'mid', v)} onDoubleClick={() => handleEQChange('snare', 'mid', 0)} size={24} />
+                 <Knob label="Hi" min={-12} max={12} value={eqGains.snare.high} onChange={v => handleEQChange('snare', 'high', v)} onDoubleClick={() => handleEQChange('snare', 'high', 0)} size={24} />
               </div>
             </div>
           </div>
@@ -439,6 +489,11 @@ function App() {
                  <Knob label="REV" min={-60} max={0} value={reverbSends.hihat} onChange={v => handleReverbSendChange('hihat', v)} size={28} />
                  <Knob label="DLY" min={-60} max={0} value={delaySends.hihat} onChange={v => handleDelaySendChange('hihat', v)} size={28} />
               </div>
+              <div className="eq-row">
+                 <Knob label="Lo" min={-12} max={12} value={eqGains.hihat.low} onChange={v => handleEQChange('hihat', 'low', v)} onDoubleClick={() => handleEQChange('hihat', 'low', 0)} size={24} />
+                 <Knob label="Mid" min={-12} max={12} value={eqGains.hihat.mid} onChange={v => handleEQChange('hihat', 'mid', v)} onDoubleClick={() => handleEQChange('hihat', 'mid', 0)} size={24} />
+                 <Knob label="Hi" min={-12} max={12} value={eqGains.hihat.high} onChange={v => handleEQChange('hihat', 'high', v)} onDoubleClick={() => handleEQChange('hihat', 'high', 0)} size={24} />
+              </div>
             </div>
           </div>
           <div className="track">
@@ -486,6 +541,11 @@ function App() {
                  <Knob label="REV" min={-60} max={0} value={reverbSends.clap} onChange={v => handleReverbSendChange('clap', v)} size={28} />
                  <Knob label="DLY" min={-60} max={0} value={delaySends.clap} onChange={v => handleDelaySendChange('clap', v)} size={28} />
               </div>
+              <div className="eq-row">
+                 <Knob label="Lo" min={-12} max={12} value={eqGains.clap.low} onChange={v => handleEQChange('clap', 'low', v)} onDoubleClick={() => handleEQChange('clap', 'low', 0)} size={24} />
+                 <Knob label="Mid" min={-12} max={12} value={eqGains.clap.mid} onChange={v => handleEQChange('clap', 'mid', v)} onDoubleClick={() => handleEQChange('clap', 'mid', 0)} size={24} />
+                 <Knob label="Hi" min={-12} max={12} value={eqGains.clap.high} onChange={v => handleEQChange('clap', 'high', v)} onDoubleClick={() => handleEQChange('clap', 'high', 0)} size={24} />
+              </div>
             </div>
           </div>
           <div className="track">
@@ -495,6 +555,8 @@ function App() {
                 <input type="range" min="-60" max="0" step="1" value={volumes.clap} onChange={e => handleVolumeChange('clap', Number(e.target.value))} onWheel={(e) => handleVolumeWheel(e, 'clap')} />
                 <label>Decay</label>
                 <input type="range" min="0.01" max="0.5" step="0.01" defaultValue="0.3" onChange={e => AudioEngine.setClapDecay(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <label>Tone</label>
+                <input type="range" min="500" max="4000" step="100" defaultValue="1500" onChange={e => AudioEngine.setClapTone(Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
               <div className="steps-container">
                 {[0, 1, 2, 3].map(groupIdx => (
@@ -530,6 +592,11 @@ function App() {
               <div className="sends-row">
                  <Knob label="REV" min={-60} max={0} value={reverbSends.bass} onChange={v => handleReverbSendChange('bass', v)} size={28} />
                  <Knob label="DLY" min={-60} max={0} value={delaySends.bass} onChange={v => handleDelaySendChange('bass', v)} size={28} />
+              </div>
+              <div className="eq-row">
+                 <Knob label="Lo" min={-12} max={12} value={eqGains.bass.low} onChange={v => handleEQChange('bass', 'low', v)} onDoubleClick={() => handleEQChange('bass', 'low', 0)} size={24} />
+                 <Knob label="Mid" min={-12} max={12} value={eqGains.bass.mid} onChange={v => handleEQChange('bass', 'mid', v)} onDoubleClick={() => handleEQChange('bass', 'mid', 0)} size={24} />
+                 <Knob label="Hi" min={-12} max={12} value={eqGains.bass.high} onChange={v => handleEQChange('bass', 'high', v)} onDoubleClick={() => handleEQChange('bass', 'high', 0)} size={24} />
               </div>
             </div>
           </div>
@@ -604,6 +671,11 @@ function App() {
                  <Knob label="REV" min={-60} max={0} value={reverbSends.pad} onChange={v => handleReverbSendChange('pad', v)} size={28} />
                  <Knob label="DLY" min={-60} max={0} value={delaySends.pad} onChange={v => handleDelaySendChange('pad', v)} size={28} />
               </div>
+              <div className="eq-row">
+                 <Knob label="Lo" min={-12} max={12} value={eqGains.pad.low} onChange={v => handleEQChange('pad', 'low', v)} onDoubleClick={() => handleEQChange('pad', 'low', 0)} size={24} />
+                 <Knob label="Mid" min={-12} max={12} value={eqGains.pad.mid} onChange={v => handleEQChange('pad', 'mid', v)} onDoubleClick={() => handleEQChange('pad', 'mid', 0)} size={24} />
+                 <Knob label="Hi" min={-12} max={12} value={eqGains.pad.high} onChange={v => handleEQChange('pad', 'high', v)} onDoubleClick={() => handleEQChange('pad', 'high', 0)} size={24} />
+              </div>
             </div>
           </div>
           <div className="track">
@@ -618,6 +690,8 @@ function App() {
                 <label>Filter</label>
                 <input type="range" min="100" max="8000" step="50" defaultValue="2000" onChange={e => AudioEngine.setPadFilterCutoff(Number(e.target.value))} onWheel={handleSliderWheel} />
                 <div className="break-row"></div>
+                <label>Detune</label>
+                <input type="range" min="0" max="30" step="1" defaultValue="12" onChange={e => AudioEngine.setPadDetune(Number(e.target.value))} onWheel={handleSliderWheel} />
                 <label>Distortion</label>
                 <input type="range" min="0" max="1" step="0.01" defaultValue="0" onChange={e => AudioEngine.setPadDistortion(Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
@@ -675,7 +749,7 @@ function App() {
 
       </div>
       
-      <Visualizer />
+      <Visualizer theme={theme} />
     </div>
   );
 }
