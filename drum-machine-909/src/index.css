@@ -561,3 +561,165 @@ input[type="range"]::-moz-range-thumb {
 }
 
 
+
+/* ============================================
+   Responsiveness
+   ============================================ */
+
+/* Tablet (Portrait/Landscape) and smaller Laptops */
+@media (max-width: 1024px) {
+  html {
+    height: auto;
+    overflow-y: auto;
+  }
+
+  body {
+    height: auto;
+    overflow-y: auto;
+    padding: 8px;
+  }
+  
+  #root {
+    height: auto;
+    overflow: visible;
+  }
+
+  .container {
+    padding: 8px;
+    height: auto;
+    overflow: visible;
+    max-width: 100%;
+  }
+
+  .sequencer-grid {
+    overflow: visible;
+    flex: none; /* Don't flex, use natural height */
+  }
+
+  /* Compacting the track container slightly */
+  .track-container {
+    padding: 8px;
+    gap: 6px;
+  }
+
+  /* Allow wrapping in top controls */
+  .controls {
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  /* Visualizer should not flex-grow on smaller screens */
+  .visualizer-container {
+    flex: none;
+    min-height: 60px;
+    max-height: 80px;
+  }
+}
+
+/* Mobile Devices */
+@media (max-width: 768px) {
+  .header {
+    margin-bottom: 12px;
+  }
+
+  .controls {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .controls button {
+    padding: 10px 20px;
+    flex: 1 0 auto;
+  }
+
+  .track-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .track-controls {
+    /* Top bar of the track card */
+    width: 100%;
+    justify-content: space-between;
+    min-width: 0;
+  }
+
+  .track-label {
+    /* Make label more prominent */
+    font-size: 0.8rem;
+  }
+
+  .track {
+    /* This contains the knob row and steps */
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    overflow: hidden; /* Ensure it doesn't break layout */
+  }
+
+  .track-main {
+    gap: 12px;
+  }
+
+  /* Scrollable Steps */
+  .steps-container {
+    overflow-x: auto;
+    padding-bottom: 8px; /* Space for scrollbar if visible */
+    width: 100%;
+    /* Ensure scrolling momentum on iOS */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .bass-steps-container {
+    overflow-x: auto;
+    padding-bottom: 8px;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Adjust knob row to wrap */
+  .knob-row {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px 8px;
+  }
+
+  .knob-row label {
+    font-size: 0.6rem;
+  }
+
+  /* Make sliders fuller width on mobile for easier touch */
+  .knob-row input[type="range"] {
+    flex: 1;
+    min-width: 80px;
+  }
+
+  /* Improve touch targets for steps */
+  .step {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0; /* Don't shrink steps */
+  }
+
+  .bass-step-wrapper {
+    flex-shrink: 0;
+  }
+  
+  .note-select {
+    width: 32px;
+  }
+
+  /* Visualizer height */
+  .visualizer-container {
+    min-height: 100px;
+    margin-bottom: 20px;
+  }
+  
+  /* Ensure mute/solo buttons are tap-friendly */
+  .ms-btn {
+    width: 34px;
+    height: 34px;
+    font-size: 0.8rem;
+  }
+}
