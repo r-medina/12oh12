@@ -56,6 +56,7 @@ const hihatVol = new Tone.Volume(0);
 const clapVol = new Tone.Volume(0);
 const bassVol = new Tone.Volume(0);
 const padVol = new Tone.Volume(0);
+const polyVol = new Tone.Volume(0);
 
 // -- 3-Band EQ Per Channel --
 // EQ bands: Low shelf 300Hz, Mid peaking 1kHz, High shelf 3kHz
@@ -99,6 +100,7 @@ const hihatEQ = createChannelEQ(hihatVol);
 const clapEQ = createChannelEQ(clapVol);
 const bassEQ = createChannelEQ(bassVol);
 const padEQ = createChannelEQ(padVol);
+const polyEQ = createChannelEQ(polyVol);
 
 
 // -- Send Nodes --
@@ -132,6 +134,11 @@ const padReverbSend = new Tone.Gain(0).connect(reverbPreFilter);
 const padDelaySend = new Tone.Gain(0).connect(delayPreFilter);
 padVol.connect(padReverbSend);
 padVol.connect(padDelaySend);
+
+const polyReverbSend = new Tone.Gain(0).connect(reverbPreFilter);
+const polyDelaySend = new Tone.Gain(0).connect(delayPreFilter);
+polyVol.connect(polyReverbSend);
+polyVol.connect(polyDelaySend);
 
 
 // -- 909-ish Synth Setup --
@@ -202,7 +209,7 @@ const clapFilter = new Tone.Filter({
 
 clap.connect(clapFilter);
 
-// -- 303 Bass Synth --
+// -- 303 Synth --
 const bass = new Tone.MonoSynth({
   oscillator: {
     type: "sawtooth"
@@ -286,6 +293,30 @@ padVoice3.set({ detune: -12 }); // -12 cents
 padDistortion.connect(padFilter);
 
 
+// -- Poly Synth (Square wave for classic poly sound) --
+const polyFilter = new Tone.Filter({
+  type: 'lowpass',
+  frequency: 2000,
+  Q: 1
+}).connect(polyVol);
+
+// PolySynth with 4 voices
+const poly = new Tone.PolySynth(Tone.Synth, {
+  oscillator: { type: 'square' },
+  envelope: {
+    attack: 0.1,
+    decay: 0.2,
+    sustain: 0.5,
+    release: 1.0
+  }
+}).connect(polyFilter);
+
+// Trigger poly voices
+const triggerPoly = (notes: string[], duration: string, time: number, velocity: number) => {
+  poly.triggerAttackRelease(notes, duration, time, velocity);
+};
+
+
 // Trigger all pad voices (unison)
 const triggerPadVoices = (notes: string[], duration: string, time: number, velocity: number) => {
   padVoice1.triggerAttackRelease(notes, duration, time, velocity);
@@ -300,11 +331,14 @@ let currentBassPitches: number[] = new Array(16).fill(36);
 let currentPadPitches: number[] = new Array(16).fill(48);
 let currentPadVoicings: PadVoicing[] = new Array(16).fill('single');
 
+// Keep track of per-step poly notes (array of MIDI notes per step)
+let currentPolyNotes: number[][] = new Array(16).fill([]);
+
 // Keep track of per-step velocities (0-127)
 let currentVelocities: Record<Instrument, number[]> = {
   kick: new Array(16).fill(100), snare: new Array(16).fill(100), hihat: new Array(16).fill(100), clap: new Array(16).fill(100),
   kick909: [], snare909: [], hihat909: [], clap909: [],
-  bass: new Array(16).fill(100), pad: new Array(16).fill(100)
+  bass: new Array(16).fill(100), pad: new Array(16).fill(100), poly: new Array(16).fill(100)
 };
 
 // -- Sequencer State --
@@ -312,22 +346,22 @@ let currentVelocities: Record<Instrument, number[]> = {
 let currentGrid: Record<Instrument, boolean[]> = {
   kick: [], snare: [], hihat: [], clap: [], 
   kick909: [], snare909: [], hihat909: [], clap909: [],
-  bass: [], pad: []
+  bass: [], pad: [], poly: []
 };
 let currentMutes: Record<Instrument, boolean> = {
   kick: false, snare: false, hihat: false, clap: false,
   kick909: false, snare909: false, hihat909: false, clap909: false,
-  bass: false, pad: false
+  bass: false, pad: false, poly: false
 };
 let currentSolos: Record<Instrument, boolean> = {
   kick: false, snare: false, hihat: false, clap: false,
   kick909: false, snare909: false, hihat909: false, clap909: false,
-  bass: false, pad: false
+  bass: false, pad: false, poly: false
 };
 let currentEnabledTracks: Record<Instrument, boolean> = {
   kick: true, snare: true, hihat: true, clap: true,
   kick909: true, snare909: true, hihat909: true, clap909: true,
-  bass: true, pad: true
+  bass: true, pad: true, poly: true
 };
 let setStepCallback: (step: number) => void = () => {};
 
@@ -361,10 +395,18 @@ const loop = new Tone.Sequence(
       bass.triggerAttackRelease(note, '16n', time, getVel('bass'));
     }
 
-    // Trigger Pad
     if (shouldPlay('pad') && currentGrid.pad[step]) {
       const chordNotes = getChordNotes(currentPadPitches[step], currentPadVoicings[step]);
       triggerPadVoices(chordNotes, '8n', time, getVel('pad'));
+    }
+
+    // Trigger Poly
+    if (shouldPlay('poly') && currentGrid.poly[step]) {
+      const notes = currentPolyNotes[step];
+      if (notes && notes.length > 0) {
+        const noteNames = notes.map(n => Tone.Frequency(n, "midi").toNote());
+        triggerPoly(noteNames, '8n', time, getVel('poly'));
+      }
     }
 
     // 2. Update UI
@@ -400,6 +442,10 @@ export const AudioEngine = {
 
   updatePadVoicings: (voicings: string[]) => {
     currentPadVoicings = voicings as PadVoicing[];
+  },
+
+  updatePolyNotes: (notes: number[][]) => {
+    currentPolyNotes = notes;
   },
 
   setBpm: (bpm: number) => {
@@ -531,6 +577,29 @@ export const AudioEngine = {
     padVoice3.set({ detune: -cents });
   },
 
+  // Poly Controls
+  setPolyAttack: (val: number) => {
+    poly.set({ envelope: { attack: val } });
+  },
+  setPolyDecay: (val: number) => {
+    poly.set({ envelope: { decay: val } });
+  },
+  setPolySustain: (val: number) => {
+    poly.set({ envelope: { sustain: val } });
+  },
+  setPolyRelease: (val: number) => {
+    poly.set({ envelope: { release: val } });
+  },
+  setPolyFilter: (val: number) => {
+    polyFilter.frequency.value = val;
+  },
+  setPolyDetune: (val: number) => {
+    poly.set({ detune: val });
+  },
+  setPolyOscillator: (type: 'sawtooth' | 'square' | 'triangle') => {
+    poly.set({ oscillator: { type } });
+  },
+
   // 3-Band EQ Per Channel
   // band: 'low' | 'mid' | 'high', val: gain in dB (-12 to +12)
   setChannelEQ: (inst: Instrument, band: 'low' | 'mid' | 'high', val: number) => {
@@ -540,7 +609,8 @@ export const AudioEngine = {
       hihat: hihatEQ,
       clap: clapEQ,
       bass: bassEQ,
-      pad: padEQ
+      pad: padEQ,
+      poly: polyEQ
     };
     const eq = eqMap[inst];
     if (!eq) return;
@@ -559,6 +629,7 @@ export const AudioEngine = {
     if (inst === 'clap') clapVol.volume.value = val;
     if (inst === 'bass') bassVol.volume.value = val;
     if (inst === 'pad') padVol.volume.value = val;
+    if (inst === 'poly') polyVol.volume.value = val;
   },
 
   // Rev/Delay Sends
@@ -578,6 +649,7 @@ export const AudioEngine = {
      if (inst === 'clap') clapReverbSend.gain.rampTo(linear, 0.1);
      if (inst === 'bass') bassReverbSend.gain.rampTo(linear, 0.1);
      if (inst === 'pad') padReverbSend.gain.rampTo(linear, 0.1);
+     if (inst === 'poly') polyReverbSend.gain.rampTo(linear, 0.1);
   },
   setDelaySend: (inst: Instrument, val: number) => {
      const linear = val <= -60 ? 0 : Tone.dbToGain(val);
@@ -588,6 +660,7 @@ export const AudioEngine = {
      if (inst === 'clap') clapDelaySend.gain.rampTo(linear, 0.1);
      if (inst === 'bass') bassDelaySend.gain.rampTo(linear, 0.1);
      if (inst === 'pad') padDelaySend.gain.rampTo(linear, 0.1);
+     if (inst === 'poly') polyDelaySend.gain.rampTo(linear, 0.1);
   },
 
   // Visualizer

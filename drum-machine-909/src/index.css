@@ -471,11 +471,6 @@ h1 {
 
 .track-container.bass-container {
   background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(255, 87, 34, 0.05) 100%);
-  border-color: rgba(255, 87, 34, 0.2);
-}
-
-.track-container.bass-container:hover {
-  border-color: rgba(255, 87, 34, 0.4);
 }
 
 /* Updated for row layout with label */
@@ -853,6 +848,9 @@ h1 {
 .track-eq-sends-column .eq-row {
   display: flex;
   gap: 4px;
+  border: 1px solid var(--step-border);
+  padding: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .track-eq-sends-column .sends-row {
@@ -870,6 +868,7 @@ h1 {
 .bass-steps-container, .pad-steps-container {
     display: flex;
     justify-content: flex-start;
+    margin-left: 60px; /* Align with Piano Roll keys width */
 }
 
 /* Helper for spacing */
@@ -919,6 +918,7 @@ h1 {
 .steps-container {
   display: flex;
   gap: 8px;
+  margin-left: 60px; /* Align with Piano Roll keys width */
 }
 
 .step {
@@ -1025,11 +1025,6 @@ h1 {
 
 .track-container.pad-container {
   background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(100, 149, 237, 0.08) 100%);
-  border-color: rgba(100, 149, 237, 0.25);
-}
-
-.track-container.pad-container:hover {
-  border-color: rgba(100, 149, 237, 0.5);
 }
 
 .pad-steps-container {
@@ -1843,4 +1838,141 @@ input[type="range"]:hover + .param-tooltip {
 
 .file-btn:active {
   transform: translateY(0);
+}
+/* ============================================
+   Piano Roll
+   ============================================ */
+
+.piano-roll-container {
+  display: flex;
+  height: 260px; /* 13 notes * 20px */
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--step-border);
+  overflow: hidden;
+  position: relative;
+  margin-top: 16px;
+}
+
+.piano-keys {
+  width: 60px;
+  background: var(--bg-tertiary);
+  border-right: 1px solid var(--step-border);
+  overflow: hidden; /* Scroll is synced via JS transform */
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.piano-key {
+  height: 20px; /* from rowHeight default */
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  box-sizing: border-box;
+}
+
+.piano-key.black {
+  background: rgba(0, 0, 0, 0.5); /* Darker for better contrast */
+  color: var(--text-muted);
+}
+
+.piano-grid-scroll {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  background: var(--bg-primary);
+}
+
+.piano-row {
+  display: flex;
+  height: 20px; /* from rowHeight */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  box-sizing: border-box;
+}
+
+.piano-row.black {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.piano-group {
+  display: flex;
+  padding: 0 6px 0 0; /* Only right padding */
+  gap: 6px; /* STEP_GAP */
+  border-right: 1px solid rgba(255, 255, 255, 0.1); 
+  margin-right: 8px; /* GROUP_GAP */
+}
+
+.piano-group:first-child {
+  padding-left: 6px; /* Match step-group left padding */
+}
+
+.piano-group:last-child {
+  margin-right: 0;
+}
+
+.piano-group.alternate {
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.piano-cell {
+  width: 44px; /* STEP_width */
+  height: 100%;
+  cursor: pointer;
+  transition: background 0.05s ease;
+}
+
+.piano-cell:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.piano-cell.active {
+  background: var(--accent-primary);
+  box-shadow: 0 0 4px var(--accent-primary);
+}
+
+.piano-cell.current {
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.piano-cell.active.current {
+  background: #fff;
+  border-color: #fff;
+}
+
+/* Day Mode Grid Visibility Overrides */
+[data-theme="day"] .piano-key {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="day"] .piano-row {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="day"] .piano-cell {
+    border-right: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="day"] .piano-group {
+    border-right: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="day"] .piano-group.alternate {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="day"] .piano-cell:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="day"] .piano-key.black {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="day"] .piano-row.black {
+    background: rgba(0, 0, 0, 0.03);
 }

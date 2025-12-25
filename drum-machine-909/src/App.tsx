@@ -9,6 +9,7 @@ import { ProModeControls } from './components/ProModeControls';
 import { ScrollableSlider } from './components/ScrollableSlider';
 import { Step } from './components/Step';
 import { ScrollableSelect } from './components/ScrollableSelect';
+import { PianoRoll } from './components/PianoRoll';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { loadScenes, saveScenes, createEmptyScene, downloadScene, importScene } from './utils/storage';
 import type { Instrument, Scene, InstrumentParams, ProModeParams } from './types';
@@ -21,27 +22,28 @@ const INITIAL_GRID: Record<Instrument, boolean[]> = {
   clap:  [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
   bass:  [false, false, true, false, false, true, false, false, false, true, false, false, true, false, false, true],
   pad:   [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+  poly:  [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
   kick909: [], snare909: [], hihat909: [], clap909: [] // Unused placeholders
 };
 
 const INITIAL_MUTES: Record<Instrument, boolean> = { 
-  kick: false, snare: false, hihat: false, clap: false, bass: false, pad: false,
+  kick: false, snare: false, hihat: false, clap: false, bass: false, pad: false, poly: false,
   kick909: false, snare909: false, hihat909: false, clap909: false
 };
 const INITIAL_SOLOS: Record<Instrument, boolean> = { 
-  kick: false, snare: false, hihat: false, clap: false, bass: false, pad: false,
+  kick: false, snare: false, hihat: false, clap: false, bass: false, pad: false, poly: false,
   kick909: false, snare909: false, hihat909: false, clap909: false
 };
 const INITIAL_VOLUMES: Record<Instrument, number> = { 
-  kick: -12, snare: -12, hihat: -12, clap: -12, bass: -12, pad: -12,
+  kick: -12, snare: -12, hihat: -12, clap: -12, bass: -12, pad: -12, poly: -12,
   kick909: 0, snare909: 0, hihat909: 0, clap909: 0
 };
 const INITIAL_REVERB_SENDS: Record<Instrument, number> = {
-  kick: -60, snare: -60, hihat: -60, clap: -60, bass: -60, pad: -60,
+  kick: -60, snare: -60, hihat: -60, clap: -60, bass: -60, pad: -60, poly: -60,
   kick909: -60, snare909: -60, hihat909: -60, clap909: -60
 };
 const INITIAL_DELAY_SENDS: Record<Instrument, number> = {
-  kick: -60, snare: -60, hihat: -60, clap: -60, bass: -60, pad: -60,
+  kick: -60, snare: -60, hihat: -60, clap: -60, bass: -60, pad: -60, poly: -60,
   kick909: -60, snare909: -60, hihat909: -60, clap909: -60
 };
 const INITIAL_EQ_GAINS: Record<Instrument, { low: number; mid: number; high: number }> = {
@@ -51,6 +53,7 @@ const INITIAL_EQ_GAINS: Record<Instrument, { low: number; mid: number; high: num
   clap: { low: 0, mid: 0, high: 0 },
   bass: { low: 0, mid: 0, high: 0 },
   pad: { low: 0, mid: 0, high: 0 },
+  poly: { low: 0, mid: 0, high: 0 },
   kick909: { low: 0, mid: 0, high: 0 },
   snare909: { low: 0, mid: 0, high: 0 },
   hihat909: { low: 0, mid: 0, high: 0 },
@@ -63,7 +66,8 @@ const INITIAL_PARAMS: InstrumentParams = {
   hihat: { decay: 0.2, tone: 3000 },
   clap: { decay: 0.3, tone: 1500 },
   bass: { cutoff: 200, resonance: 2, envMod: 2, decay: 0.2 },
-  pad: { attack: 0.3, release: 1.5, cutoff: 2000, detune: 12, distortion: 0 }
+  pad: { attack: 0.3, release: 1.5, cutoff: 2000, detune: 12, distortion: 0 },
+  poly: { attack: 0.1, decay: 0.2, sustain: 0.5, release: 1.0, filter: 2000, detune: 0, oscillator: 'square' }
 };
 
 const INITIAL_PRO_MODE_PARAMS: ProModeParams = {
@@ -105,7 +109,8 @@ const INITIAL_PRO_MODE_PARAMS: ProModeParams = {
     hihat: true,
     clap: true,
     bass: true,
-    pad: true
+    pad: true,
+    poly: true
   }
 };
 
@@ -127,7 +132,7 @@ function App() {
   const [velocities, setVelocities] = useState<Record<Instrument, number[]>>(() => {
     // Initialize velocities to 100/127 for all
     const vels: any = {};
-    const insts: Instrument[] = ['kick', 'snare', 'hihat', 'clap', 'bass', 'pad', 'kick909', 'snare909', 'hihat909', 'clap909'];
+    const insts: Instrument[] = ['kick', 'snare', 'hihat', 'clap', 'bass', 'pad', 'poly', 'kick909', 'snare909', 'hihat909', 'clap909'];
     insts.forEach(i => vels[i] = new Array(16).fill(100));
     return vels;
   });
@@ -222,6 +227,10 @@ function App() {
           AudioEngine.updateBassPitches(bassPitches);
           AudioEngine.updatePadPitches(padPitches);
           AudioEngine.updatePadVoicings(padVoicings);
+          AudioEngine.updateBassPitches(bassPitches);
+          AudioEngine.updatePadPitches(padPitches);
+          AudioEngine.updatePadVoicings(padVoicings);
+          AudioEngine.updatePolyNotes(polyNotes);
           AudioEngine.updateVelocities(velocities);
 
           // Sync Pro Mode Params
@@ -412,12 +421,22 @@ function App() {
       if (param === 'cutoff') AudioEngine.setPadFilterCutoff(val);
       if (param === 'detune') AudioEngine.setPadDetune(val);
       if (param === 'distortion') AudioEngine.setPadDistortion(val);
+    } else if (inst === 'poly') {
+      if (param === 'attack') AudioEngine.setPolyAttack(val);
+      if (param === 'decay') AudioEngine.setPolyDecay(val);
+      if (param === 'sustain') AudioEngine.setPolySustain(val);
+      if (param === 'release') AudioEngine.setPolyRelease(val);
+      if (param === 'filter') AudioEngine.setPolyFilter(val);
+      if (param === 'detune') AudioEngine.setPolyDetune(val);
     }
   };
 
-  /* Per-step Pad Pitches (MIDI notes) and Voicings */
+  /* Per-step Pad Pitches & Voicings */
   const [padPitches, setPadPitches] = useState<number[]>(new Array(16).fill(48)); // Default C3 (48)
   const [padVoicings, setPadVoicings] = useState<string[]>(new Array(16).fill('single'));
+
+  /* Per-step Poly Notes (Piano Roll) */
+  const [polyNotes, setPolyNotes] = useState<number[][]>(new Array(16).fill([]));
 
   // Handler for pro mode parameter changes
   const handleProModeParamChange = (category: keyof ProModeParams, param: string, value: any) => {
@@ -482,6 +501,7 @@ function App() {
       bassPitches,
       padPitches,
       padVoicings,
+      polyNotes,
       volumes,
       velocities,
       reverbSends,
@@ -499,7 +519,7 @@ function App() {
     newScenes[activeSceneIndex] = currentScene;
     setScenes(newScenes);
     saveScenes(newScenes);
-  }, [grid, bassPitches, padPitches, padVoicings, volumes, velocities, reverbSends, delaySends, eqGains, params, mutes, solos, bpm, swing, proModeParams]);
+  }, [grid, bassPitches, padPitches, padVoicings, polyNotes, volumes, velocities, reverbSends, delaySends, eqGains, params, mutes, solos, bpm, swing, proModeParams]);
 
   // Scene Management Handlers
   const loadSceneState = useCallback((scene: Scene) => {
@@ -507,6 +527,9 @@ function App() {
     setBassPitches(scene.bassPitches);
     setPadPitches(scene.padPitches);
     setPadVoicings(scene.padVoicings);
+    setPadPitches(scene.padPitches);
+    setPadVoicings(scene.padVoicings);
+    setPolyNotes(scene.polyNotes || new Array(16).fill([]));
     setVolumes(scene.volumes);
     setReverbSends(scene.reverbSends);
     setDelaySends(scene.delaySends);
@@ -520,7 +543,7 @@ function App() {
 
     const safeVelocities = scene.velocities || (() => {
        const v: any = {};
-       const insts: Instrument[] = ['kick', 'snare', 'hihat', 'clap', 'bass', 'pad', 'kick909', 'snare909', 'hihat909', 'clap909'];
+       const insts: Instrument[] = ['kick', 'snare', 'hihat', 'clap', 'bass', 'pad', 'poly', 'kick909', 'snare909', 'hihat909', 'clap909'];
        insts.forEach(i => v[i] = new Array(16).fill(100));
        return v;
     })();
@@ -536,6 +559,7 @@ function App() {
     AudioEngine.updateBassPitches(scene.bassPitches);
     AudioEngine.updatePadPitches(scene.padPitches);
     AudioEngine.updatePadVoicings(scene.padVoicings);
+    AudioEngine.updatePolyNotes(scene.polyNotes || new Array(16).fill([]));
     AudioEngine.setSwing(scene.swing);
     AudioEngine.updateVelocities(safeVelocities);
 
@@ -571,7 +595,18 @@ function App() {
     AudioEngine.setPadFilterCutoff(p.pad.cutoff);
     AudioEngine.setPadDetune(p.pad.detune);
     AudioEngine.setPadDetune(p.pad.detune);
+    AudioEngine.setPadDetune(p.pad.detune);
     AudioEngine.setPadDistortion(p.pad.distortion);
+
+    // Poly Params
+    const polyP = p.poly || INITIAL_PARAMS.poly;
+    AudioEngine.setPolyAttack(polyP.attack);
+    AudioEngine.setPolyDecay(polyP.decay);
+    AudioEngine.setPolySustain(polyP.sustain);
+    AudioEngine.setPolyRelease(polyP.release);
+    AudioEngine.setPolyFilter(polyP.filter);
+    AudioEngine.setPolyDetune(polyP.detune);
+    AudioEngine.setPolyOscillator(polyP.oscillator || 'square');
     
     AudioEngine.setKickDistortion(p.kick.distortion || 0);
 
@@ -768,6 +803,23 @@ function App() {
     const delta = e.deltaY > 0 ? 1 : -1;
     handlePadPitchChange(stepIndex, current + delta);
   }, [padPitches]);
+
+  /* Poly Note Handlers */
+  const handlePolyNotesChange = (stepIndex: number, notes: number[]) => {
+    const newNotes = [...polyNotes];
+    newNotes[stepIndex] = notes;
+    setPolyNotes(newNotes);
+    AudioEngine.updatePolyNotes(newNotes);
+
+    // Also update grid state if needed - though PianoRoll handles notes
+    // We should ensure the step is active in the grid if it has notes
+    if (notes.length > 0 && !grid.poly[stepIndex]) {
+        // Auto-enable step in sequencer grid if notes are added
+        setStepState('poly', stepIndex, true);
+    } else if (notes.length === 0 && grid.poly[stepIndex]) {
+        // Optional: Auto-disable step if notes are empty? Maybe better not to force it.
+    }
+  };
   
   return (
     <div className="container">
@@ -1079,7 +1131,7 @@ function App() {
         {/* Bass (303) */}
         {(proModeParams.trackEnabled?.bass ?? true) && (
         <TrackRow
-          label="303 Bass"
+          label="303"
           instrument="bass"
           className="bass-container"
           mute={mutes.bass}
@@ -1258,6 +1310,79 @@ function App() {
                 })}
               </div>
             ))}
+          </div>
+        </TrackRow>
+        )}
+
+        {/* Poly Synth */}
+        {(proModeParams.trackEnabled?.poly ?? true) && (
+        <TrackRow
+          label="Poly"
+          instrument="poly"
+          className="poly-container"
+          mute={mutes.poly}
+          solo={solos.poly}
+          volume={volumes.poly}
+          reverbSend={reverbSends.poly}
+          delaySend={delaySends.poly}
+          eq={eqGains.poly}
+          onMute={() => handleMute('poly')}
+          onSolo={() => handleSolo('poly')}
+          onVolumeChange={(v: number) => handleVolumeChange('poly', v)}
+          onReverbSendChange={(v: number) => handleReverbSendChange('poly', v)}
+          onDelaySendChange={(v: number) => handleDelaySendChange('poly', v)}
+          onEQChange={(band: 'low' | 'mid' | 'high', v: number) => handleEQChange('poly', band, v)}
+          extraControls={
+            <>
+              <div className="param-item">
+                <label>Wave</label>
+                <ScrollableSelect 
+                    value={params.poly.oscillator || 'square'} 
+                    onChange={(e) => {
+                        const val = e.target.value as any;
+                        handleParamChange('poly', 'oscillator', val);
+                        AudioEngine.setPolyOscillator(val);
+                    }}
+                    style={{ width: '60px' }}
+                >
+                    <option value="square">Sqr</option>
+                    <option value="sawtooth">Saw</option>
+                    <option value="triangle">Tri</option>
+                </ScrollableSelect>
+              </div>
+              <div className="param-item">
+                <label>Attack</label>
+                <ScrollableSlider min={0.01} max={1.0} step={0.01} value={params.poly.attack} onChange={e => handleParamChange('poly', 'attack', Number(e.target.value))} />
+              </div>
+              <div className="param-item">
+                <label>Decay</label>
+                <ScrollableSlider min={0.1} max={2.0} step={0.1} value={params.poly.decay} onChange={e => handleParamChange('poly', 'decay', Number(e.target.value))} />
+              </div>
+              <div className="param-item">
+                <label>Filter</label>
+                <ScrollableSlider min={100} max={5000} step={50} value={params.poly.filter} onChange={e => handleParamChange('poly', 'filter', Number(e.target.value))} />
+              </div>
+              <div className="param-item">
+                <label>Sus</label>
+                <ScrollableSlider min={0} max={1} step={0.01} value={params.poly.sustain} onChange={e => handleParamChange('poly', 'sustain', Number(e.target.value))} />
+              </div>
+              <div className="param-item">
+                <label>Rel</label>
+                <ScrollableSlider min={0.1} max={3.0} step={0.1} value={params.poly.release} onChange={e => handleParamChange('poly', 'release', Number(e.target.value))} />
+              </div>
+            </>
+          }
+        >
+          {/* Piano Roll Integration */}
+          <div style={{ padding: '4px 0' }}>
+            <PianoRoll 
+                stepCount={16}
+                currentStep={isPlaying ? currentStep : -1}
+                steps={polyNotes}
+                onChange={handlePolyNotesChange}
+                minNote={48} // C3
+                maxNote={84} // C6
+            />
           </div>
         </TrackRow>
         )}

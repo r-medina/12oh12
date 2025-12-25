@@ -1,6 +1,6 @@
-export type Instrument = "kick" | "snare" | "hihat" | "clap" | "kick909" | "snare909" | "hihat909" | "clap909" | "bass" | "pad";
+export type Instrument = "kick" | "snare" | "hihat" | "clap" | "kick909" | "snare909" | "hihat909" | "clap909" | "bass" | "pad" | "poly";
 
-export const INSTRUMENTS: Instrument[] = ["kick", "snare", "hihat", "clap", "kick909", "snare909", "hihat909", "clap909", "bass", "pad"];
+export const INSTRUMENTS: Instrument[] = ["kick", "snare", "hihat", "clap", "kick909", "snare909", "hihat909", "clap909", "bass", "pad", "poly"];
 
 export interface DrumState {
   bpm: number;
@@ -39,6 +39,15 @@ export interface InstrumentParams {
     cutoff: number;
     detune: number;
     distortion: number;
+  };
+  poly: {
+    attack: number;
+    decay: number;
+    sustain: number;
+    release: number;
+    filter: number;
+    detune: number;
+    oscillator: 'sawtooth' | 'square' | 'triangle';
   };
 }
 
@@ -84,6 +93,7 @@ export interface Scene {
   bassPitches: number[];
   padPitches: number[];
   padVoicings: string[];
+  polyNotes: number[][]; // Array of 16 steps, each containing array of MIDI notes
   volumes: Record<Instrument, number>;
   reverbSends: Record<Instrument, number>;
   delaySends: Record<Instrument, number>;

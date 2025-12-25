@@ -7,7 +7,7 @@ const AUTO_SAVE_KEY = 'drum-machine-autosave';
  * Create a single empty scene
  */
 export const createEmptyScene = (name: string): Scene => {
-  const instruments: Instrument[] = ['kick', 'snare', 'hihat', 'clap', 'bass', 'pad', 'kick909', 'snare909', 'hihat909', 'clap909'];
+  const instruments: Instrument[] = ['kick', 'snare', 'hihat', 'clap', 'bass', 'pad', 'poly', 'kick909', 'snare909', 'hihat909', 'clap909'];
   
   const emptyGrid: Record<Instrument, boolean[]> = {} as Record<Instrument, boolean[]>;
   const emptyVolumes: Record<Instrument, number> = {} as Record<Instrument, number>;
@@ -35,7 +35,8 @@ export const createEmptyScene = (name: string): Scene => {
     hihat: { decay: 0.2, tone: 3000 },
     clap: { decay: 0.3, tone: 1500 },
     bass: { cutoff: 200, resonance: 2, envMod: 2, decay: 0.2 },
-    pad: { attack: 0.3, release: 1.5, cutoff: 2000, detune: 12, distortion: 0 }
+    pad: { attack: 0.3, release: 1.5, cutoff: 2000, detune: 12, distortion: 0 },
+    poly: { attack: 0.1, decay: 0.2, sustain: 0.5, release: 1.0, filter: 2000, detune: 0, oscillator: 'square' }
   };
 
   const defaultProModeParams = {
@@ -77,7 +78,8 @@ export const createEmptyScene = (name: string): Scene => {
       hihat: true,
       clap: true,
       bass: true,
-      pad: true
+      pad: true,
+      poly: true
     }
   };
   
@@ -87,6 +89,7 @@ export const createEmptyScene = (name: string): Scene => {
     bassPitches: new Array(16).fill(36),
     padPitches: new Array(16).fill(48),
     padVoicings: new Array(16).fill('single'),
+    polyNotes: new Array(16).fill([]),
     volumes: emptyVolumes,
     reverbSends: emptyReverbSends,
     delaySends: emptyDelaySends,
@@ -129,6 +132,7 @@ const migrateScene = (scene: any): Scene => {
     bassPitches: scene.bassPitches || defaultScene.bassPitches,
     padPitches: scene.padPitches || defaultScene.padPitches,
     padVoicings: scene.padVoicings || defaultScene.padVoicings,
+    polyNotes: scene.polyNotes || defaultScene.polyNotes,
     proModeParams: scene.proModeParams ? {
       ...defaultScene.proModeParams!,
       ...scene.proModeParams,
