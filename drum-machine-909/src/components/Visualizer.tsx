@@ -18,12 +18,12 @@ export function Visualizer() {
     const gap = 2;   // Gap between pixels
     
     // Calculate sizing based on matrix
-    // We want the pixels to be square. 
-    // Let's determine total width based on container, but for now fixed internal res is fine
-    // as we scale with CSS. 
-    // However, to make it crisp, we should probably set width/height to accommodate the grid exactly.
     const pixelSize = 4;
-    const width = cols * (pixelSize + gap) + gap;
+    // Add extra columns for Master meter (gap + master bar)
+    const masterCols = 2; // Gap + Meter
+    const totalCols = cols + masterCols;
+    
+    const width = totalCols * (pixelSize + gap) + gap;
     const height = rows * (pixelSize + gap) + gap;
     
     canvas.width = width;
@@ -31,58 +31,96 @@ export function Visualizer() {
 
     const draw = () => {
       const values = AudioEngine.getFrequencyData();
+      const masterLevelDb = AudioEngine.getMasterLevel() as number;
       
       // Get theme colors
       const style = getComputedStyle(document.documentElement);
       const bgPrimary = style.getPropertyValue('--bg-tertiary').trim() || '#1e1e1e';
       const accentColor = style.getPropertyValue('--accent-primary').trim() || '#ff5722';
       const inactiveColor = style.getPropertyValue('--step-off').trim() || '#2a2a2a';
-      
+      const clipColor = '#ff3333'; // Red for clipping
+
       // Clear
       ctx.fillStyle = bgPrimary;
       ctx.fillRect(0, 0, width, height);
 
       if (values instanceof Float32Array || values instanceof Uint8Array) {
         const binCount = values.length;
-        // We only use the lower portion of the frequency spectrum usually, 
-        // but AudioEngine.getFrequencyData() usually returns a usable range if configured right.
         
+        // Draw Frequency Bars
         for (let c = 0; c < cols; c++) {
-          // Map column to frequency bin
-          // Logarithmic distribution usually looks better, but linear is ok for simple
           const binIndex = Math.floor(c * (binCount / cols));
           const val = values[binIndex];
           
-          // Map dB to height
           const minDb = -80;
           const maxDb = -20;
           let normalized = (val - minDb) / (maxDb - minDb);
           normalized = Math.max(0, Math.min(1, normalized));
           
-          // Calculate how many "pixels" are lit
           const litPixels = Math.floor(normalized * rows);
 
           for (let r = 0; r < rows; r++) {
-            // Draw from bottom up, so row 0 is bottom
             const y = height - ((r + 1) * (pixelSize + gap));
             const x = gap + c * (pixelSize + gap);
             
             if (r < litPixels) {
               // Active pixel
-              ctx.fillStyle = accentColor;
+              // Turn top pixel red if near max
+              if (r === rows - 1) {
+                 ctx.fillStyle = clipColor;
+                 ctx.shadowColor = clipColor;
+              } else {
+                 ctx.fillStyle = accentColor;
+                 ctx.shadowColor = accentColor;
+              }
               ctx.shadowBlur = 1;
-              ctx.shadowColor = accentColor;
             } else {
-              // Inactive pixel (matrix background)
+              // Inactive pixel
               ctx.fillStyle = inactiveColor;
               ctx.shadowBlur = 0;
             }
             
             ctx.fillRect(x, y, pixelSize, pixelSize);
           }
-           // Reset shadow for next column iteration (though we reset effectively by setting it per pixel)
-           ctx.shadowBlur = 0;
+          ctx.shadowBlur = 0;
         }
+
+        // Draw Master Meter
+        // Add a small gap before master meter
+        const masterXStart = (cols + 1) * (pixelSize + gap) + gap;
+        
+        // Master Level Mapping
+        // Range: -60dB to 0dB (clipping > 0)
+        // Be a bit more sensitive near the top
+        const masterMin = -60;
+        const masterMax = 0;
+        let masterNorm = (masterLevelDb - masterMin) / (masterMax - masterMin);
+        masterNorm = Math.max(0, Math.min(1.2, masterNorm)); // Allow it to go slightly over 1 to show hard clipping
+
+        const masterLit = Math.floor(masterNorm * rows);
+
+        for (let r = 0; r < rows; r++) {
+            const y = height - ((r + 1) * (pixelSize + gap));
+            const x = masterXStart; // Single wide column or just one column
+            
+            if (r < masterLit) {
+                 // Check for clipping logic using raw dB value
+                 // If we are in the top row OR global level > -0.5dB, turn red
+                 if (r === rows - 1 || masterLevelDb > -0.5) {
+                    ctx.fillStyle = clipColor;
+                    ctx.shadowColor = clipColor;
+                 } else {
+                    ctx.fillStyle = accentColor;
+                    ctx.shadowColor = accentColor;
+                 }
+                 ctx.shadowBlur = 1;
+            } else {
+                ctx.fillStyle = inactiveColor;
+                ctx.shadowBlur = 0;
+            }
+            ctx.fillRect(x, y, pixelSize, pixelSize);
+        }
+        ctx.shadowBlur = 0;
       }
 
       animationId = requestAnimationFrame(draw);

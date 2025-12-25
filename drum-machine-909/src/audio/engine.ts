@@ -4,6 +4,8 @@ import type { Instrument } from '../types';
 // -- Analyser & Master --
 const analyser = new Tone.Analyser('fft', 64);
 const masterVol = new Tone.Volume(0).connect(analyser);
+const meter = new Tone.Meter();
+masterVol.connect(meter);
 analyser.toDestination();
 
 // -- Volume Nodes --
@@ -270,5 +272,9 @@ export const AudioEngine = {
   // Directly expose the analyser for advanced usage if needed, 
   // or a helper method to fill a buffer to avoid GC if possible.
   // Actually Tone.js getValue returns the buffer.
-  getAnalyser: () => analyser
+  getAnalyser: () => analyser,
+
+  getMasterLevel: () => {
+    return meter.getValue(); // Returns number (decibels)
+  }
 };

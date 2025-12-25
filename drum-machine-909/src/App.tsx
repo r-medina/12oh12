@@ -482,9 +482,9 @@ function App() {
                             onChange={(e) => handleBassPitchChange(stepIndex, Number(e.target.value))}
                             onWheel={(e) => handleNoteWheel(e, stepIndex)}
                           >
-                            {/* C1 (24) to C4 (60) */}
+                            {/* C4 (60) to C1 (24) */}
                             {Array.from({ length: 37 }, (_, i) => {
-                              const midi = 24 + i;
+                              const midi = 60 - i;
                               const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
                               const octave = Math.floor(midi / 12) - 1;
                               const noteName = noteNames[midi % 12];
