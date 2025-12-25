@@ -1,5 +1,5 @@
 {
-        "name": "drum-machine-909",
+        "name": "12-oh-12",
         "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
         "features": {
                 "ghcr.io/devcontainers/features/node:1": {}

@@ -5,7 +5,7 @@ This document is designed to help an AI agent (or a human developer) quickly und
 ## 📂 Project Structure
 
 ```
-drum-machine-909/
+12-oh-12/
 ├── src/
 │   ├── audio/
 │   │   ├── engine.ts       # 🔊 CORE AUDIO LOGIC. Tone.js setup, synths, effects chain (Tape, Compressor), and the main sequencer loop.
