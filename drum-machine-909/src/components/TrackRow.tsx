@@ -81,8 +81,8 @@ export const TrackRow: React.FC<TrackRowProps> = ({
         {/* Right Group: Sends & EQ */}
         <div className="track-sends-eq">
           <div className="control-pill-group sends-group">
-            <Knob label="REV" min={-60} max={0} value={reverbSend} onChange={onReverbSendChange} size={36} />
-            <Knob label="DLY" min={-60} max={0} value={delaySend} onChange={onDelaySendChange} size={36} />
+            <Knob label="REV" min={-60} max={0} value={reverbSend} onChange={onReverbSendChange} onDoubleClick={() => onReverbSendChange(-60)} size={36} />
+            <Knob label="DLY" min={-60} max={0} value={delaySend} onChange={onDelaySendChange} onDoubleClick={() => onDelaySendChange(-60)} size={36} />
           </div>
           
           <div className="control-pill-group eq-group">

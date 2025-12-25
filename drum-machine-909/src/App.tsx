@@ -6,7 +6,7 @@ import { SceneSelector } from './components/SceneSelector';
 import { ShortcutHelp } from './components/ShortcutHelp';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { loadScenes, saveScenes, createEmptyScene, downloadScene, importScene } from './utils/storage';
-import type { Instrument, Scene } from './types';
+import type { Instrument, Scene, InstrumentParams } from './types';
 
 // Initial Pattern: Basic House Beat
 const INITIAL_GRID: Record<Instrument, boolean[]> = {
@@ -52,6 +52,15 @@ const INITIAL_EQ_GAINS: Record<Instrument, { low: number; mid: number; high: num
   clap909: { low: 0, mid: 0, high: 0 }
 };
 
+const INITIAL_PARAMS: InstrumentParams = {
+  kick: { tune: 0.05, decay: 0.4 },
+  snare: { tone: 3000, snappy: 0.2 },
+  hihat: { decay: 0.2, tone: 3000 },
+  clap: { decay: 0.3, tone: 1500 },
+  bass: { cutoff: 200, resonance: 2, envMod: 2, decay: 0.2 },
+  pad: { attack: 0.3, release: 1.5, cutoff: 2000, detune: 12, distortion: 0 }
+};
+
 function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpm] = useState(120);
@@ -67,6 +76,7 @@ function App() {
   const [reverbSends, setReverbSends] = useState(INITIAL_REVERB_SENDS);
   const [delaySends, setDelaySends] = useState(INITIAL_DELAY_SENDS);
   const [eqGains, setEqGains] = useState(INITIAL_EQ_GAINS);
+  const [params, setParams] = useState<InstrumentParams>(INITIAL_PARAMS);
 
   // Scene management
   const [scenes, setScenes] = useState<Scene[]>(() => loadScenes());
@@ -131,6 +141,26 @@ function App() {
               AudioEngine.setChannelEQ(inst, 'mid', eq.mid);
               AudioEngine.setChannelEQ(inst, 'high', eq.high);
           });
+
+          // Sync Params
+          AudioEngine.setKickPitchDecay(params.kick.tune);
+          AudioEngine.setKickDecay(params.kick.decay);
+          AudioEngine.setSnareTone(params.snare.tone);
+          AudioEngine.setSnareDecay(params.snare.snappy);
+          AudioEngine.setHiHatDecay(params.hihat.decay);
+          AudioEngine.setHiHatTone(params.hihat.tone);
+          AudioEngine.setClapDecay(params.clap.decay);
+          AudioEngine.setClapTone(params.clap.tone);
+          AudioEngine.setBassCutoff(params.bass.cutoff);
+          AudioEngine.setBassResonance(params.bass.resonance);
+          AudioEngine.setBassEnvMod(params.bass.envMod);
+          AudioEngine.setBassDecay(params.bass.decay);
+          AudioEngine.setPadAttack(params.pad.attack);
+          AudioEngine.setPadRelease(params.pad.release);
+          AudioEngine.setPadFilterCutoff(params.pad.cutoff);
+          AudioEngine.setPadDetune(params.pad.detune);
+          AudioEngine.setPadDistortion(params.pad.distortion);
+
           AudioEngine.updateBassPitches(bassPitches);
           AudioEngine.updatePadPitches(padPitches);
           AudioEngine.updatePadVoicings(padVoicings);
@@ -304,6 +334,43 @@ function App() {
     handleBassPitchChange(stepIndex, current + delta);
   };
 
+  const handleParamChange = (inst: keyof InstrumentParams, param: string, val: number) => {
+    // Update state
+    setParams(prev => ({
+      ...prev,
+      [inst]: {
+        ...prev[inst],
+        [param]: val
+      }
+    }));
+
+    // Update Engine
+    if (inst === 'kick') {
+      if (param === 'tune') AudioEngine.setKickPitchDecay(val);
+      if (param === 'decay') AudioEngine.setKickDecay(val);
+    } else if (inst === 'snare') {
+      if (param === 'tone') AudioEngine.setSnareTone(val);
+      if (param === 'snappy') AudioEngine.setSnareDecay(val);
+    } else if (inst === 'hihat') {
+      if (param === 'decay') AudioEngine.setHiHatDecay(val);
+      if (param === 'tone') AudioEngine.setHiHatTone(val);
+    } else if (inst === 'clap') {
+      if (param === 'decay') AudioEngine.setClapDecay(val);
+      if (param === 'tone') AudioEngine.setClapTone(val);
+    } else if (inst === 'bass') {
+      if (param === 'cutoff') AudioEngine.setBassCutoff(val);
+      if (param === 'resonance') AudioEngine.setBassResonance(val);
+      if (param === 'envMod') AudioEngine.setBassEnvMod(val);
+      if (param === 'decay') AudioEngine.setBassDecay(val);
+    } else if (inst === 'pad') {
+      if (param === 'attack') AudioEngine.setPadAttack(val);
+      if (param === 'release') AudioEngine.setPadRelease(val);
+      if (param === 'cutoff') AudioEngine.setPadFilterCutoff(val);
+      if (param === 'detune') AudioEngine.setPadDetune(val);
+      if (param === 'distortion') AudioEngine.setPadDistortion(val);
+    }
+  };
+
   /* Per-step Pad Pitches (MIDI notes) and Voicings */
   const [padPitches, setPadPitches] = useState<number[]>(new Array(16).fill(48)); // Default C3 (48)
   const [padVoicings, setPadVoicings] = useState<string[]>(new Array(16).fill('single'));
@@ -319,7 +386,9 @@ function App() {
       volumes,
       reverbSends,
       delaySends,
+
       eqGains,
+      params,
       mutes,
       solos,
       bpm,
@@ -330,7 +399,7 @@ function App() {
     newScenes[activeSceneIndex] = currentScene;
     setScenes(newScenes);
     saveScenes(newScenes);
-  }, [grid, bassPitches, padPitches, padVoicings, volumes, reverbSends, delaySends, eqGains, mutes, solos, bpm, swing]);
+  }, [grid, bassPitches, padPitches, padVoicings, volumes, reverbSends, delaySends, eqGains, params, mutes, solos, bpm, swing]);
 
   // Scene Management Handlers
   const loadSceneState = useCallback((scene: Scene) => {
@@ -341,7 +410,9 @@ function App() {
     setVolumes(scene.volumes);
     setReverbSends(scene.reverbSends);
     setDelaySends(scene.delaySends);
+
     setEqGains(scene.eqGains);
+    setParams(scene.params || INITIAL_PARAMS);
     setMutes(scene.mutes);
     setSolos(scene.solos);
     setBpm(scene.bpm);
@@ -365,8 +436,28 @@ function App() {
       const eq = scene.eqGains[inst];
       AudioEngine.setChannelEQ(inst, 'low', eq.low);
       AudioEngine.setChannelEQ(inst, 'mid', eq.mid);
+
       AudioEngine.setChannelEQ(inst, 'high', eq.high);
     });
+
+    const p = scene.params || INITIAL_PARAMS;
+    AudioEngine.setKickPitchDecay(p.kick.tune);
+    AudioEngine.setKickDecay(p.kick.decay);
+    AudioEngine.setSnareTone(p.snare.tone);
+    AudioEngine.setSnareDecay(p.snare.snappy);
+    AudioEngine.setHiHatDecay(p.hihat.decay);
+    AudioEngine.setHiHatTone(p.hihat.tone);
+    AudioEngine.setClapDecay(p.clap.decay);
+    AudioEngine.setClapTone(p.clap.tone);
+    AudioEngine.setBassCutoff(p.bass.cutoff);
+    AudioEngine.setBassResonance(p.bass.resonance);
+    AudioEngine.setBassEnvMod(p.bass.envMod);
+    AudioEngine.setBassDecay(p.bass.decay);
+    AudioEngine.setPadAttack(p.pad.attack);
+    AudioEngine.setPadRelease(p.pad.release);
+    AudioEngine.setPadFilterCutoff(p.pad.cutoff);
+    AudioEngine.setPadDetune(p.pad.detune);
+    AudioEngine.setPadDistortion(p.pad.distortion);
   }, []);
 
   const handleSceneSelect = useCallback((index: number) => {
@@ -617,11 +708,11 @@ function App() {
             <>
               <div className="param-item">
                 <label>Tune</label>
-                <input type="range" min="0.01" max="0.3" step="0.01" defaultValue="0.05" onChange={e => AudioEngine.setKickPitchDecay(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <input type="range" min="0.01" max="0.3" step="0.01" value={params.kick.tune} onChange={e => handleParamChange('kick', 'tune', Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
               <div className="param-item">
                 <label>Decay</label>
-                <input type="range" min="0.1" max="2.0" step="0.1" defaultValue="0.4" onChange={e => AudioEngine.setKickDecay(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <input type="range" min="0.1" max="2.0" step="0.1" value={params.kick.decay} onChange={e => handleParamChange('kick', 'decay', Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
             </>
           }
@@ -667,11 +758,11 @@ function App() {
             <>
               <div className="param-item">
                 <label>Tone</label>
-                <input type="range" min="400" max="6000" step="100" defaultValue="3000" onChange={e => AudioEngine.setSnareTone(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <input type="range" min="400" max="6000" step="100" value={params.snare.tone} onChange={e => handleParamChange('snare', 'tone', Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
               <div className="param-item">
                 <label>Snappy</label>
-                <input type="range" min="0.05" max="0.5" step="0.01" defaultValue="0.2" onChange={e => AudioEngine.setSnareDecay(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <input type="range" min="0.05" max="0.5" step="0.01" value={params.snare.snappy} onChange={e => handleParamChange('snare', 'snappy', Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
             </>
           }
@@ -717,11 +808,11 @@ function App() {
             <>
               <div className="param-item">
                 <label>Decay</label>
-                <input type="range" min="0.05" max="1.0" step="0.01" defaultValue="0.2" onChange={e => AudioEngine.setHiHatDecay(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <input type="range" min="0.05" max="1.0" step="0.01" value={params.hihat.decay} onChange={e => handleParamChange('hihat', 'decay', Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
               <div className="param-item">
                 <label>Tone</label>
-                <input type="range" min="500" max="10000" step="100" defaultValue="3000" onChange={e => AudioEngine.setHiHatTone(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <input type="range" min="500" max="10000" step="100" value={params.hihat.tone} onChange={e => handleParamChange('hihat', 'tone', Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
             </>
           }
@@ -767,11 +858,11 @@ function App() {
             <>
               <div className="param-item">
                 <label>Decay</label>
-                <input type="range" min="0.01" max="0.5" step="0.01" defaultValue="0.3" onChange={e => AudioEngine.setClapDecay(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <input type="range" min="0.01" max="0.5" step="0.01" value={params.clap.decay} onChange={e => handleParamChange('clap', 'decay', Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
               <div className="param-item">
                 <label>Tone</label>
-                <input type="range" min="500" max="4000" step="100" defaultValue="1500" onChange={e => AudioEngine.setClapTone(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <input type="range" min="500" max="4000" step="100" value={params.clap.tone} onChange={e => handleParamChange('clap', 'tone', Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
             </>
           }
@@ -818,19 +909,19 @@ function App() {
             <>
               <div className="param-item">
                 <label>Cutoff</label>
-                <input type="range" min="50" max="5000" step="10" defaultValue="200" onChange={e => AudioEngine.setBassCutoff(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <input type="range" min="50" max="5000" step="10" value={params.bass.cutoff} onChange={e => handleParamChange('bass', 'cutoff', Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
               <div className="param-item">
                 <label>Res</label>
-                <input type="range" min="0" max="20" step="0.1" defaultValue="2" onChange={e => AudioEngine.setBassResonance(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <input type="range" min="0" max="20" step="0.1" value={params.bass.resonance} onChange={e => handleParamChange('bass', 'resonance', Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
               <div className="param-item">
                 <label>Env Mod</label>
-                <input type="range" min="0" max="8" step="0.1" defaultValue="2" onChange={e => AudioEngine.setBassEnvMod(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <input type="range" min="0" max="8" step="0.1" value={params.bass.envMod} onChange={e => handleParamChange('bass', 'envMod', Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
               <div className="param-item">
                 <label>Decay</label>
-                <input type="range" min="0.1" max="2.0" step="0.1" defaultValue="0.2" onChange={e => AudioEngine.setBassDecay(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <input type="range" min="0.1" max="2.0" step="0.1" value={params.bass.decay} onChange={e => handleParamChange('bass', 'decay', Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
             </>
           }
@@ -898,23 +989,23 @@ function App() {
             <>
               <div className="param-item">
                 <label>Attack</label>
-                <input type="range" min="0.01" max="1.0" step="0.01" defaultValue="0.3" onChange={e => AudioEngine.setPadAttack(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <input type="range" min="0.01" max="1.0" step="0.01" value={params.pad.attack} onChange={e => handleParamChange('pad', 'attack', Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
               <div className="param-item">
                 <label>Release</label>
-                <input type="range" min="0.1" max="3.0" step="0.1" defaultValue="1.5" onChange={e => AudioEngine.setPadRelease(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <input type="range" min="0.1" max="3.0" step="0.1" value={params.pad.release} onChange={e => handleParamChange('pad', 'release', Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
               <div className="param-item">
                 <label>Filter</label>
-                <input type="range" min="100" max="8000" step="50" defaultValue="2000" onChange={e => AudioEngine.setPadFilterCutoff(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <input type="range" min="100" max="8000" step="50" value={params.pad.cutoff} onChange={e => handleParamChange('pad', 'cutoff', Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
               <div className="param-item">
                 <label>Detune</label>
-                <input type="range" min="0" max="30" step="1" defaultValue="12" onChange={e => AudioEngine.setPadDetune(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <input type="range" min="0" max="30" step="1" value={params.pad.detune} onChange={e => handleParamChange('pad', 'detune', Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
               <div className="param-item">
                 <label>Distortion</label>
-                <input type="range" min="0" max="1" step="0.01" defaultValue="0" onChange={e => AudioEngine.setPadDistortion(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <input type="range" min="0" max="1" step="0.01" value={params.pad.distortion} onChange={e => handleParamChange('pad', 'distortion', Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
             </>
           }

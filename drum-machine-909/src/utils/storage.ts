@@ -1,4 +1,4 @@
-import type { Scene, Instrument } from '../types';
+import type { Scene, Instrument, InstrumentParams } from '../types';
 
 const STORAGE_KEY = 'drum-machine-scenes';
 const AUTO_SAVE_KEY = 'drum-machine-autosave';
@@ -27,6 +27,15 @@ export const createEmptyScene = (name: string): Scene => {
     emptySolos[inst] = false;
   });
   
+  const defaultParams: InstrumentParams = {
+    kick: { tune: 0.05, decay: 0.4 },
+    snare: { tone: 3000, snappy: 0.2 },
+    hihat: { decay: 0.2, tone: 3000 },
+    clap: { decay: 0.3, tone: 1500 },
+    bass: { cutoff: 200, resonance: 2, envMod: 2, decay: 0.2 },
+    pad: { attack: 0.3, release: 1.5, cutoff: 2000, detune: 12, distortion: 0 }
+  };
+  
   return {
     name,
     grid: emptyGrid,
@@ -37,6 +46,7 @@ export const createEmptyScene = (name: string): Scene => {
     reverbSends: emptyReverbSends,
     delaySends: emptyDelaySends,
     eqGains: emptyEqGains,
+    params: defaultParams,
     mutes: emptyMutes,
     solos: emptySolos,
     bpm: 120,
@@ -65,6 +75,7 @@ const migrateScene = (scene: any): Scene => {
     reverbSends: { ...defaultScene.reverbSends, ...(scene.reverbSends || {}) },
     delaySends: { ...defaultScene.delaySends, ...(scene.delaySends || {}) },
     eqGains: { ...defaultScene.eqGains, ...(scene.eqGains || {}) },
+    params: { ...defaultScene.params, ...(scene.params || {}) },
     mutes: { ...defaultScene.mutes, ...(scene.mutes || {}) },
     solos: { ...defaultScene.solos, ...(scene.solos || {}) },
     bassPitches: scene.bassPitches || defaultScene.bassPitches,

@@ -35,6 +35,27 @@ export const Knob: React.FC<KnobProps> = ({
     document.body.style.cursor = 'ns-resize';
   };
 
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    e.stopPropagation(); // Prevent page scroll
+    
+    // Scroll direction: deltaY > 0 is "scroll down" -> increase value
+    const delta = e.deltaY > 0 ? step : -step;
+    let newValue = value + delta;
+    
+    // Clamp to range
+    newValue = Math.max(min, Math.min(max, newValue));
+    
+    // Apply step rounding
+    if (step) {
+      newValue = Math.round(newValue / step) * step;
+    }
+    
+    if (newValue !== value) {
+      onChange(newValue);
+    }
+  };
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
@@ -85,6 +106,7 @@ export const Knob: React.FC<KnobProps> = ({
         className="knob-control" 
         onMouseDown={handleMouseDown}
         onDoubleClick={onDoubleClick}
+        onWheel={handleWheel}
         style={{ 
           width: size, 
           height: size, 

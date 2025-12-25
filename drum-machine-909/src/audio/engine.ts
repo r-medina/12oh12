@@ -24,8 +24,9 @@ meter.toDestination();
 
 
 // -- Effects --
-// High-pass filter BEFORE sends (150Hz) - prevents low-end mud in effects
-const sendPreFilter = new Tone.Filter(150, "highpass");
+// High-pass filters BEFORE sends (150Hz) - prevents low-end mud in effects
+const reverbPreFilter = new Tone.Filter(150, "highpass");
+const delayPreFilter = new Tone.Filter(150, "highpass");
 
 const reverb = new Tone.Reverb({
   decay: 4.0,
@@ -34,7 +35,7 @@ const reverb = new Tone.Reverb({
 });
 const reverbToneFilter = new Tone.Filter(600, "highpass"); // Existing tone shaping
 const reverbPostFilter = new Tone.Filter(95, "highpass"); // Post-effect HPF
-sendPreFilter.connect(reverb);
+reverbPreFilter.connect(reverb);
 reverb.chain(reverbToneFilter, reverbPostFilter, masterVol);
 reverb.generate(); // Required for Reverb to start working
 
@@ -44,7 +45,7 @@ const delay = new Tone.FeedbackDelay({
   wet: 1.0 // Send effect
 });
 const delayPostFilter = new Tone.Filter(95, "highpass"); // Post-effect HPF
-sendPreFilter.connect(delay);
+delayPreFilter.connect(delay);
 delay.chain(delayPostFilter, masterVol);
 
 // -- Volume Nodes --
@@ -102,33 +103,33 @@ const padEQ = createChannelEQ(padVol);
 
 // -- Send Nodes --
 // Connect Channel Volume -> Send Gain -> Pre-Filter (150Hz HPF) -> Effects
-const kickReverbSend = new Tone.Gain(0).connect(sendPreFilter);
-const kickDelaySend = new Tone.Gain(0).connect(sendPreFilter);
+const kickReverbSend = new Tone.Gain(0).connect(reverbPreFilter);
+const kickDelaySend = new Tone.Gain(0).connect(delayPreFilter);
 kickVol.connect(kickReverbSend);
 kickVol.connect(kickDelaySend);
 
-const snareReverbSend = new Tone.Gain(0).connect(sendPreFilter);
-const snareDelaySend = new Tone.Gain(0).connect(sendPreFilter);
+const snareReverbSend = new Tone.Gain(0).connect(reverbPreFilter);
+const snareDelaySend = new Tone.Gain(0).connect(delayPreFilter);
 snareVol.connect(snareReverbSend);
 snareVol.connect(snareDelaySend);
 
-const hihatReverbSend = new Tone.Gain(0).connect(sendPreFilter);
-const hihatDelaySend = new Tone.Gain(0).connect(sendPreFilter);
+const hihatReverbSend = new Tone.Gain(0).connect(reverbPreFilter);
+const hihatDelaySend = new Tone.Gain(0).connect(delayPreFilter);
 hihatVol.connect(hihatReverbSend);
 hihatVol.connect(hihatDelaySend);
 
-const clapReverbSend = new Tone.Gain(0).connect(sendPreFilter);
-const clapDelaySend = new Tone.Gain(0).connect(sendPreFilter);
+const clapReverbSend = new Tone.Gain(0).connect(reverbPreFilter);
+const clapDelaySend = new Tone.Gain(0).connect(delayPreFilter);
 clapVol.connect(clapReverbSend);
 clapVol.connect(clapDelaySend);
 
-const bassReverbSend = new Tone.Gain(0).connect(sendPreFilter);
-const bassDelaySend = new Tone.Gain(0).connect(sendPreFilter);
+const bassReverbSend = new Tone.Gain(0).connect(reverbPreFilter);
+const bassDelaySend = new Tone.Gain(0).connect(delayPreFilter);
 bassVol.connect(bassReverbSend);
 bassVol.connect(bassDelaySend);
 
-const padReverbSend = new Tone.Gain(0).connect(sendPreFilter);
-const padDelaySend = new Tone.Gain(0).connect(sendPreFilter);
+const padReverbSend = new Tone.Gain(0).connect(reverbPreFilter);
+const padDelaySend = new Tone.Gain(0).connect(delayPreFilter);
 padVol.connect(padReverbSend);
 padVol.connect(padDelaySend);
 
