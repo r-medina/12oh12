@@ -1,12 +1,33 @@
 import * as Tone from 'tone';
 import type { Instrument } from '../types';
+import { TapeChain } from './tape';
 
 // -- Analyser & Master --
 const analyser = new Tone.Analyser('fft', 64);
-const masterVol = new Tone.Volume(0).connect(analyser);
+const masterVol = new Tone.Volume(0);
+const tapeChain = new TapeChain();
 const meter = new Tone.Meter();
-masterVol.connect(meter);
-analyser.toDestination();
+
+// Chain: masterVol -> TapeChain -> Analyser -> Meter -> Destination
+masterVol.connect(tapeChain.input);
+tapeChain.output.connect(analyser);
+analyser.connect(meter);
+meter.toDestination();
+
+
+// -- Effects --
+const reverb = new Tone.Reverb({
+  decay: 2.5,
+  preDelay: 0.01,
+  wet: 1.0 // Send effect, so full wet on the bus
+}).connect(masterVol);
+reverb.generate(); // Required for Reverb to start working
+
+const delay = new Tone.FeedbackDelay({
+  delayTime: "8n.",
+  feedback: 0.4,
+  wet: 1.0 // Send effect
+}).connect(masterVol);
 
 // -- Volume Nodes --
 // Connect individual channels to masterVol instead of Destination
@@ -15,6 +36,35 @@ const snareVol = new Tone.Volume(0).connect(masterVol);
 const hihatVol = new Tone.Volume(0).connect(masterVol);
 const clapVol = new Tone.Volume(0).connect(masterVol);
 const bassVol = new Tone.Volume(0).connect(masterVol);
+
+// -- Send Nodes --
+// We create a specific Gain node for each send to control the level
+// Connect Channel Volume -> Send Gain -> Effect Bus
+const kickReverbSend = new Tone.Gain(0).connect(reverb);
+const kickDelaySend = new Tone.Gain(0).connect(delay);
+kickVol.connect(kickReverbSend);
+kickVol.connect(kickDelaySend);
+
+const snareReverbSend = new Tone.Gain(0).connect(reverb);
+const snareDelaySend = new Tone.Gain(0).connect(delay);
+snareVol.connect(snareReverbSend);
+snareVol.connect(snareDelaySend);
+
+const hihatReverbSend = new Tone.Gain(0).connect(reverb);
+const hihatDelaySend = new Tone.Gain(0).connect(delay);
+hihatVol.connect(hihatReverbSend);
+hihatVol.connect(hihatDelaySend);
+
+const clapReverbSend = new Tone.Gain(0).connect(reverb);
+const clapDelaySend = new Tone.Gain(0).connect(delay);
+clapVol.connect(clapReverbSend);
+clapVol.connect(clapDelaySend);
+
+const bassReverbSend = new Tone.Gain(0).connect(reverb);
+const bassDelaySend = new Tone.Gain(0).connect(delay);
+bassVol.connect(bassReverbSend);
+bassVol.connect(bassDelaySend);
+
 
 // -- 909-ish Synth Setup --
 const kick = new Tone.MembraneSynth({
@@ -49,7 +99,7 @@ snare.connect(snareFilter);
 const hihat = new Tone.MetalSynth({
   envelope: {
     attack: 0.001,
-    decay: 0.1,
+    decay: 0.01,
     release: 0.01
   },
   harmonicity: 5.1,
@@ -216,6 +266,9 @@ export const AudioEngine = {
   setHiHatDecay: (val: number) => {
     hihat.envelope.decay = val;
   },
+  setHiHatTone: (val: number) => {
+    hatFilter.frequency.value = val;
+  },
 
   // Clap
   setClapDecay: (val: number) => {
@@ -258,6 +311,33 @@ export const AudioEngine = {
     if (inst === 'hihat') hihatVol.volume.value = val;
     if (inst === 'clap') clapVol.volume.value = val;
     if (inst === 'bass') bassVol.volume.value = val;
+  },
+
+  // Rev/Delay Sends
+  setReverbSend: (inst: Instrument, val: number) => {
+     // val is in dB, we can set gain.value using Tone.dbToGain or similar if needed,
+     // but Tone.Gain.gain is 0-1 linear usually, OR Tone.Gain has a 'gain' param which is signal-rate.
+     // However, Tone.Gain does NOT wrap AudioParam in decibels by default. 
+     // We can use Tone.Gain(0, "decibels") or just set volume.value if it was a Volume node.
+     // I initialized them as Gain(0), which means 0 linear gain (silent). 
+     // Let's assume input val is decibels like the implementation plan said (-60 to 0).
+     // We need to convert db to gain.
+     const linear = val <= -60 ? 0 : Tone.dbToGain(val);
+     
+     if (inst === 'kick') kickReverbSend.gain.rampTo(linear, 0.1);
+     if (inst === 'snare') snareReverbSend.gain.rampTo(linear, 0.1);
+     if (inst === 'hihat') hihatReverbSend.gain.rampTo(linear, 0.1);
+     if (inst === 'clap') clapReverbSend.gain.rampTo(linear, 0.1);
+     if (inst === 'bass') bassReverbSend.gain.rampTo(linear, 0.1);
+  },
+  setDelaySend: (inst: Instrument, val: number) => {
+     const linear = val <= -60 ? 0 : Tone.dbToGain(val);
+     
+     if (inst === 'kick') kickDelaySend.gain.rampTo(linear, 0.1);
+     if (inst === 'snare') snareDelaySend.gain.rampTo(linear, 0.1);
+     if (inst === 'hihat') hihatDelaySend.gain.rampTo(linear, 0.1);
+     if (inst === 'clap') clapDelaySend.gain.rampTo(linear, 0.1);
+     if (inst === 'bass') bassDelaySend.gain.rampTo(linear, 0.1);
   },
 
   // Visualizer

@@ -272,10 +272,31 @@ h1 {
   cursor: pointer;
 }
 
+/* Mute/Solo and Sends Column */
+.track-utils-column {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
 .mute-solo-row {
   display: flex;
   gap: 6px;
-  margin-left: auto; /* Push to right */
+}
+
+.sends-row {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* Knob component internal styles */
+.knob-label {
+  font-family: var(--font-mono);
+  font-size: 0.45rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
 }
 
 .ms-btn {
@@ -397,11 +418,16 @@ h1 {
 }
 
 .step.current {
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.5);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.8), 0 0 10px rgba(255, 255, 255, 0.3);
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: #fff;
 }
 
 .step.active.current {
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6), 0 0 12px rgba(255, 87, 34, 0.5);
+  background-color: var(--accent-primary);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 16px rgba(255, 87, 34, 0.8);
+  transform: scale(1.05); /* Slight pop */
+  border-color: #fff;
 }
 
 /* ============================================

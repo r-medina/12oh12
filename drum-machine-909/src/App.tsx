@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { AudioEngine } from './audio/engine';
 import { Visualizer } from './components/Visualizer';
+import { Knob } from './components/Knob';
 import type { Instrument } from './types';
 
 // Initial Pattern: Basic House Beat
@@ -25,6 +26,14 @@ const INITIAL_VOLUMES: Record<Instrument, number> = {
   kick: -12, snare: -12, hihat: -12, clap: -12, bass: -12,
   kick909: 0, snare909: 0, hihat909: 0, clap909: 0
 };
+const INITIAL_REVERB_SENDS: Record<Instrument, number> = {
+  kick: -60, snare: -60, hihat: -60, clap: -60, bass: -60,
+  kick909: -60, snare909: -60, hihat909: -60, clap909: -60
+};
+const INITIAL_DELAY_SENDS: Record<Instrument, number> = {
+  kick: -60, snare: -60, hihat: -60, clap: -60, bass: -60,
+  kick909: -60, snare909: -60, hihat909: -60, clap909: -60
+};
 
 function App() {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -38,6 +47,8 @@ function App() {
   const [mutes, setMutes] = useState(INITIAL_MUTES);
   const [solos, setSolos] = useState(INITIAL_SOLOS);
   const [volumes, setVolumes] = useState(INITIAL_VOLUMES);
+  const [reverbSends, setReverbSends] = useState(INITIAL_REVERB_SENDS);
+  const [delaySends, setDelaySends] = useState(INITIAL_DELAY_SENDS);
 
   // Theme effect
   useEffect(() => {
@@ -76,6 +87,8 @@ function App() {
         AudioEngine.setMute(inst, mutes[inst]);
         AudioEngine.setSolo(inst, solos[inst]);
         AudioEngine.setVolume(inst, volumes[inst]);
+        AudioEngine.setReverbSend(inst, reverbSends[inst]);
+        AudioEngine.setDelaySend(inst, delaySends[inst]);
     });
     AudioEngine.updateBassPitches(bassPitches);
 
@@ -133,6 +146,16 @@ function App() {
     }
     setVolumes({ ...volumes, [inst]: snappedVal });
     AudioEngine.setVolume(inst, snappedVal);
+  };
+
+  const handleReverbSendChange = (inst: Instrument, val: number) => {
+    setReverbSends({ ...reverbSends, [inst]: val });
+    AudioEngine.setReverbSend(inst, val);
+  };
+
+  const handleDelaySendChange = (inst: Instrument, val: number) => {
+    setDelaySends({ ...delaySends, [inst]: val });
+    AudioEngine.setDelaySend(inst, val);
   };
 
   const handleVolumeWheel = (e: React.WheelEvent<HTMLInputElement>, inst: Instrument) => {
@@ -282,9 +305,15 @@ function App() {
         <div className="track-container">
           <div className="track-controls">
             <div className="track-label">kick</div>
-            <div className="mute-solo-row">
-                <button className={`ms-btn ${mutes.kick ? 'active' : ''}`} onClick={() => handleMute('kick')}>M</button>
-                <button className={`ms-btn ${solos.kick ? 'active' : ''}`} onClick={() => handleSolo('kick')}>S</button>
+            <div className="track-utils-column">
+              <div className="mute-solo-row">
+                  <button className={`ms-btn ${mutes.kick ? 'active' : ''}`} onClick={() => handleMute('kick')}>M</button>
+                  <button className={`ms-btn ${solos.kick ? 'active' : ''}`} onClick={() => handleSolo('kick')}>S</button>
+              </div>
+              <div className="sends-row">
+                 <Knob label="REV" min={-60} max={0} value={reverbSends.kick} onChange={v => handleReverbSendChange('kick', v)} size={28} />
+                 <Knob label="DLY" min={-60} max={0} value={delaySends.kick} onChange={v => handleDelaySendChange('kick', v)} size={28} />
+              </div>
             </div>
           </div>
           <div className="track">
@@ -323,9 +352,15 @@ function App() {
         <div className="track-container">
           <div className="track-controls">
             <div className="track-label">snare</div>
-            <div className="mute-solo-row">
-                <button className={`ms-btn ${mutes.snare ? 'active' : ''}`} onClick={() => handleMute('snare')}>M</button>
-                <button className={`ms-btn ${solos.snare ? 'active' : ''}`} onClick={() => handleSolo('snare')}>S</button>
+            <div className="track-utils-column">
+              <div className="mute-solo-row">
+                  <button className={`ms-btn ${mutes.snare ? 'active' : ''}`} onClick={() => handleMute('snare')}>M</button>
+                  <button className={`ms-btn ${solos.snare ? 'active' : ''}`} onClick={() => handleSolo('snare')}>S</button>
+              </div>
+              <div className="sends-row">
+                 <Knob label="REV" min={-60} max={0} value={reverbSends.snare} onChange={v => handleReverbSendChange('snare', v)} size={28} />
+                 <Knob label="DLY" min={-60} max={0} value={delaySends.snare} onChange={v => handleDelaySendChange('snare', v)} size={28} />
+              </div>
             </div>
           </div>
           <div className="track">
@@ -364,9 +399,15 @@ function App() {
         <div className="track-container">
           <div className="track-controls">
             <div className="track-label">hihat</div>
-            <div className="mute-solo-row">
-                <button className={`ms-btn ${mutes.hihat ? 'active' : ''}`} onClick={() => handleMute('hihat')}>M</button>
-                <button className={`ms-btn ${solos.hihat ? 'active' : ''}`} onClick={() => handleSolo('hihat')}>S</button>
+            <div className="track-utils-column">
+              <div className="mute-solo-row">
+                  <button className={`ms-btn ${mutes.hihat ? 'active' : ''}`} onClick={() => handleMute('hihat')}>M</button>
+                  <button className={`ms-btn ${solos.hihat ? 'active' : ''}`} onClick={() => handleSolo('hihat')}>S</button>
+              </div>
+              <div className="sends-row">
+                 <Knob label="REV" min={-60} max={0} value={reverbSends.hihat} onChange={v => handleReverbSendChange('hihat', v)} size={28} />
+                 <Knob label="DLY" min={-60} max={0} value={delaySends.hihat} onChange={v => handleDelaySendChange('hihat', v)} size={28} />
+              </div>
             </div>
           </div>
           <div className="track">
@@ -376,6 +417,8 @@ function App() {
                 <input type="range" min="-60" max="0" step="1" value={volumes.hihat} onChange={e => handleVolumeChange('hihat', Number(e.target.value))} onWheel={(e) => handleVolumeWheel(e, 'hihat')} />
                 <label>Decay</label>
                 <input type="range" min="0.01" max="0.5" step="0.01" defaultValue="0.1" onChange={e => AudioEngine.setHiHatDecay(Number(e.target.value))} onWheel={handleSliderWheel} />
+                <label>Tone</label>
+                <input type="range" min="500" max="10000" step="100" defaultValue="3000" onChange={e => AudioEngine.setHiHatTone(Number(e.target.value))} onWheel={handleSliderWheel} />
               </div>
               <div className="steps-container">
                 {[0, 1, 2, 3].map(groupIdx => (
@@ -403,9 +446,15 @@ function App() {
         <div className="track-container">
           <div className="track-controls">
             <div className="track-label">clap</div>
-            <div className="mute-solo-row">
-                <button className={`ms-btn ${mutes.clap ? 'active' : ''}`} onClick={() => handleMute('clap')}>M</button>
-                <button className={`ms-btn ${solos.clap ? 'active' : ''}`} onClick={() => handleSolo('clap')}>S</button>
+            <div className="track-utils-column">
+              <div className="mute-solo-row">
+                  <button className={`ms-btn ${mutes.clap ? 'active' : ''}`} onClick={() => handleMute('clap')}>M</button>
+                  <button className={`ms-btn ${solos.clap ? 'active' : ''}`} onClick={() => handleSolo('clap')}>S</button>
+              </div>
+              <div className="sends-row">
+                 <Knob label="REV" min={-60} max={0} value={reverbSends.clap} onChange={v => handleReverbSendChange('clap', v)} size={28} />
+                 <Knob label="DLY" min={-60} max={0} value={delaySends.clap} onChange={v => handleDelaySendChange('clap', v)} size={28} />
+              </div>
             </div>
           </div>
           <div className="track">
@@ -442,9 +491,15 @@ function App() {
         <div className="track-container bass-container">
           <div className="track-controls">
             <div className="track-label">303 Bass</div>
-            <div className="mute-solo-row">
-                <button className={`ms-btn ${mutes.bass ? 'active' : ''}`} onClick={() => handleMute('bass')}>M</button>
-                <button className={`ms-btn ${solos.bass ? 'active' : ''}`} onClick={() => handleSolo('bass')}>S</button>
+            <div className="track-utils-column">
+              <div className="mute-solo-row">
+                  <button className={`ms-btn ${mutes.bass ? 'active' : ''}`} onClick={() => handleMute('bass')}>M</button>
+                  <button className={`ms-btn ${solos.bass ? 'active' : ''}`} onClick={() => handleSolo('bass')}>S</button>
+              </div>
+              <div className="sends-row">
+                 <Knob label="REV" min={-60} max={0} value={reverbSends.bass} onChange={v => handleReverbSendChange('bass', v)} size={28} />
+                 <Knob label="DLY" min={-60} max={0} value={delaySends.bass} onChange={v => handleDelaySendChange('bass', v)} size={28} />
+              </div>
             </div>
           </div>
           <div className="track">
