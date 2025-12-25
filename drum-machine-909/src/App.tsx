@@ -608,11 +608,11 @@ function App() {
           eq={eqGains.kick}
           onMute={() => handleMute('kick')}
           onSolo={() => handleSolo('kick')}
-          onVolumeChange={(v) => handleVolumeChange('kick', v)}
-          onVolumeWheel={(e) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'kick')}
-          onReverbSendChange={(v) => handleReverbSendChange('kick', v)}
-          onDelaySendChange={(v) => handleDelaySendChange('kick', v)}
-          onEQChange={(band, v) => handleEQChange('kick', band, v)}
+          onVolumeChange={(v: number) => handleVolumeChange('kick', v)}
+          onVolumeWheel={(e: React.WheelEvent) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'kick')}
+          onReverbSendChange={(v: number) => handleReverbSendChange('kick', v)}
+          onDelaySendChange={(v: number) => handleDelaySendChange('kick', v)}
+          onEQChange={(band: 'low' | 'mid' | 'high', v: number) => handleEQChange('kick', band, v)}
           extraControls={
             <>
               <div className="param-item">
@@ -658,11 +658,11 @@ function App() {
           eq={eqGains.snare}
           onMute={() => handleMute('snare')}
           onSolo={() => handleSolo('snare')}
-          onVolumeChange={(v) => handleVolumeChange('snare', v)}
-          onVolumeWheel={(e) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'snare')}
-          onReverbSendChange={(v) => handleReverbSendChange('snare', v)}
-          onDelaySendChange={(v) => handleDelaySendChange('snare', v)}
-          onEQChange={(band, v) => handleEQChange('snare', band, v)}
+          onVolumeChange={(v: number) => handleVolumeChange('snare', v)}
+          onVolumeWheel={(e: React.WheelEvent) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'snare')}
+          onReverbSendChange={(v: number) => handleReverbSendChange('snare', v)}
+          onDelaySendChange={(v: number) => handleDelaySendChange('snare', v)}
+          onEQChange={(band: 'low' | 'mid' | 'high', v: number) => handleEQChange('snare', band, v)}
           extraControls={
             <>
               <div className="param-item">
@@ -708,11 +708,11 @@ function App() {
           eq={eqGains.hihat}
           onMute={() => handleMute('hihat')}
           onSolo={() => handleSolo('hihat')}
-          onVolumeChange={(v) => handleVolumeChange('hihat', v)}
-          onVolumeWheel={(e) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'hihat')}
-          onReverbSendChange={(v) => handleReverbSendChange('hihat', v)}
-          onDelaySendChange={(v) => handleDelaySendChange('hihat', v)}
-          onEQChange={(band, v) => handleEQChange('hihat', band, v)}
+          onVolumeChange={(v: number) => handleVolumeChange('hihat', v)}
+          onVolumeWheel={(e: React.WheelEvent) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'hihat')}
+          onReverbSendChange={(v: number) => handleReverbSendChange('hihat', v)}
+          onDelaySendChange={(v: number) => handleDelaySendChange('hihat', v)}
+          onEQChange={(band: 'low' | 'mid' | 'high', v: number) => handleEQChange('hihat', band, v)}
           extraControls={
             <>
               <div className="param-item">
@@ -758,11 +758,11 @@ function App() {
           eq={eqGains.clap}
           onMute={() => handleMute('clap')}
           onSolo={() => handleSolo('clap')}
-          onVolumeChange={(v) => handleVolumeChange('clap', v)}
-          onVolumeWheel={(e) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'clap')}
-          onReverbSendChange={(v) => handleReverbSendChange('clap', v)}
-          onDelaySendChange={(v) => handleDelaySendChange('clap', v)}
-          onEQChange={(band, v) => handleEQChange('clap', band, v)}
+          onVolumeChange={(v: number) => handleVolumeChange('clap', v)}
+          onVolumeWheel={(e: React.WheelEvent) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'clap')}
+          onReverbSendChange={(v: number) => handleReverbSendChange('clap', v)}
+          onDelaySendChange={(v: number) => handleDelaySendChange('clap', v)}
+          onEQChange={(band: 'low' | 'mid' | 'high', v: number) => handleEQChange('clap', band, v)}
           extraControls={
             <>
               <div className="param-item">
@@ -809,11 +809,11 @@ function App() {
           eq={eqGains.bass}
           onMute={() => handleMute('bass')}
           onSolo={() => handleSolo('bass')}
-          onVolumeChange={(v) => handleVolumeChange('bass', v)}
-          onVolumeWheel={(e) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'bass')}
-          onReverbSendChange={(v) => handleReverbSendChange('bass', v)}
-          onDelaySendChange={(v) => handleDelaySendChange('bass', v)}
-          onEQChange={(band, v) => handleEQChange('bass', band, v)}
+          onVolumeChange={(v: number) => handleVolumeChange('bass', v)}
+          onVolumeWheel={(e: React.WheelEvent) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'bass')}
+          onReverbSendChange={(v: number) => handleReverbSendChange('bass', v)}
+          onDelaySendChange={(v: number) => handleDelaySendChange('bass', v)}
+          onEQChange={(band: 'low' | 'mid' | 'high', v: number) => handleEQChange('bass', band, v)}
           extraControls={
             <>
               <div className="param-item">
@@ -889,11 +889,11 @@ function App() {
           eq={eqGains.pad}
           onMute={() => handleMute('pad')}
           onSolo={() => handleSolo('pad')}
-          onVolumeChange={(v) => handleVolumeChange('pad', v)}
-          onVolumeWheel={(e) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'pad')}
-          onReverbSendChange={(v) => handleReverbSendChange('pad', v)}
-          onDelaySendChange={(v) => handleDelaySendChange('pad', v)}
-          onEQChange={(band, v) => handleEQChange('pad', band, v)}
+          onVolumeChange={(v: number) => handleVolumeChange('pad', v)}
+          onVolumeWheel={(e: React.WheelEvent) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'pad')}
+          onReverbSendChange={(v: number) => handleReverbSendChange('pad', v)}
+          onDelaySendChange={(v: number) => handleDelaySendChange('pad', v)}
+          onEQChange={(band: 'low' | 'mid' | 'high', v: number) => handleEQChange('pad', band, v)}
           extraControls={
             <>
               <div className="param-item">
