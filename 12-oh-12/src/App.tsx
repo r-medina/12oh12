@@ -1376,7 +1376,6 @@ function App() {
           {/* Piano Roll Integration */}
           <div style={{ padding: '4px 0' }}>
             <PianoRoll 
-                stepCount={16}
                 currentStep={isPlaying ? currentStep : -1}
                 steps={polyNotes}
                 onChange={handlePolyNotesChange}

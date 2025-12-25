@@ -3,25 +3,19 @@ import React, { useRef, useEffect, useState } from 'react';
 import { midiToNoteName } from './NoteStepper';
 
 interface PianoRollProps {
-  stepCount: number;
   currentStep: number;
   steps: number[][]; // Array of steps, each containing MIDI notes (0-127)
   onChange: (stepIndex: number, notes: number[]) => void;
   minNote?: number; // Lowest MIDI note to show (default 36 C2)
   maxNote?: number; // Highest MIDI note to show (default 84 C6)
-  rowHeight?: number;
-  stepWidth?: number;
 }
 
 export const PianoRoll: React.FC<PianoRollProps> = ({
-  stepCount = 16,
   currentStep,
   steps,
   onChange,
   minNote = 36,
-  maxNote = 84,
-  rowHeight = 20,
-  stepWidth = 40
+  maxNote = 84
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
