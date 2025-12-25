@@ -1258,29 +1258,25 @@ input[type="range"]::-moz-range-thumb {
 
   .sequencer-grid {
     overflow: visible;
-    flex: none; /* Don't flex, use natural height */
+    flex: none;
   }
 
-  /* Compacting the track container slightly */
   .track-container {
     padding: 8px;
     gap: 6px;
   }
 
-  /* Allow wrapping in top controls */
   .controls {
     flex-wrap: wrap;
     justify-content: space-between;
   }
 
-  /* Visualizer should not flex-grow on smaller screens */
   .visualizer-container {
     flex: none;
     min-height: 60px;
     max-height: 80px;
   }
 
-  /* iPad/Tablet: Improve touch targets for knobs */
   .track-header {
     flex-wrap: wrap;
     gap: 8px;
@@ -1294,7 +1290,6 @@ input[type="range"]::-moz-range-thumb {
     gap: 10px;
   }
 
-  /* Scale up knob containers for better touch */
   .knob-container {
     transform: scale(1.15);
     transform-origin: center;
@@ -1302,139 +1297,573 @@ input[type="range"]::-moz-range-thumb {
   }
 
   .track-grid-row {
-    padding-left: 0; /* Reset alignment for tablet */
+    padding-left: 0;
+  }
+  
+  /* Remove piano roll margin alignment on tablet */
+  .steps-container,
+  .bass-steps-container,
+  .pad-steps-container {
+    margin-left: 0;
   }
 }
 
-/* Mobile Devices */
+/* ============================================
+   Mobile Devices - Complete Layout Override
+   ============================================ */
 @media (max-width: 768px) {
-  .header {
-    margin-bottom: 12px;
+  /* -------------------- GLOBAL -------------------- */
+  body {
+    padding: 8px;
+    font-size: 14px;
   }
 
+  .container {
+    padding: 0;
+  }
+
+  /* -------------------- HEADER -------------------- */
+  .header {
+    margin-bottom: 8px;
+    padding: 0 8px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  h1 {
+    font-size: 1rem;
+    letter-spacing: 3px;
+  }
+
+  .theme-toggle,
+  .pro-mode-toggle {
+    padding: 4px 8px;
+    gap: 4px;
+  }
+
+  .theme-toggle-label,
+  .pro-mode-toggle-label {
+    font-size: 0.55rem;
+    width: 24px;
+  }
+
+  .theme-toggle-track,
+  .pro-mode-toggle-track {
+    width: 28px;
+    height: 14px;
+  }
+
+  .theme-toggle-thumb,
+  .pro-mode-toggle-thumb {
+    width: 10px;
+    height: 10px;
+  }
+
+  .help-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+  }
+
+  /* -------------------- CONTROLS BAR -------------------- */
   .controls {
-    gap: 12px;
-    padding: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px;
+    margin: 0 0 8px 0;
   }
 
   .controls button {
-    padding: 10px 20px;
-    flex: 1 0 auto;
+    padding: 12px 24px;
+    font-size: 0.9rem;
+    min-height: 44px;
+    flex: 1;
+    min-width: 100px;
   }
 
+  .control-group {
+    flex: 1;
+    min-width: 100px;
+  }
+
+  .control-group label {
+    font-size: 0.55rem;
+  }
+
+  .controls input[type="range"],
+  .controls input[type="range"].swing-slider {
+    width: 100%;
+    min-width: 80px;
+    height: 24px;
+  }
+
+  /* -------------------- SCENE SELECTOR -------------------- */
+  .scene-selector {
+    padding: 10px;
+    gap: 8px;
+    margin: 0 0 8px 0;
+  }
+
+  .scene-selector-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .scene-label {
+    text-align: center;
+    font-size: 0.55rem;
+  }
+
+  .scene-global-actions {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .scene-action-btn {
+    padding: 8px 12px;
+    font-size: 0.6rem;
+    min-height: 36px;
+  }
+
+  .scene-buttons {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .scene-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 0.75rem;
+  }
+
+  .scene-divider {
+    display: none;
+  }
+
+  /* -------------------- TRACK CONTAINER -------------------- */
   .track-container {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
+    padding: 10px;
+    gap: 8px;
   }
 
-  .track-controls {
-    /* Top bar of the track card */
+  /* Left section expands to full width */
+  .track-left-section {
     width: 100%;
+  }
+
+  /* Right section becomes a horizontal row below */
+  .track-right-section {
+    flex-direction: row;
+    align-items: center;
     justify-content: space-between;
-    min-width: 0;
+    width: 100%;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: var(--radius-sm);
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  [data-theme="day"] .track-right-section {
+    background: rgba(0, 0, 0, 0.03);
+  }
+
+  /* Gain column becomes horizontal */
+  .track-gain-column {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    width: auto;
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .track-gain-column .vertical-slider.gain-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    writing-mode: horizontal-tb;
+    direction: ltr;
+    width: 100%;
+    height: 24px;
+    min-height: 24px;
+  }
+
+  .track-gain-column .gain-label {
+    white-space: nowrap;
+    min-width: 45px;
+  }
+
+  /* EQ/Sends column becomes horizontal compact */
+  .track-eq-sends-column {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .track-eq-sends-column .eq-row,
+  .track-eq-sends-column .sends-row {
+    gap: 8px;
+  }
+
+  /* -------------------- TRACK HEADER -------------------- */
+  .track-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: auto;
+  }
+
+  .track-identity {
+    min-width: auto;
+    gap: 8px;
   }
 
   .track-label {
-    /* Make label more prominent */
-    font-size: 0.8rem;
+    font-size: 0.85rem;
+    min-width: 50px;
   }
 
-  .track {
-    /* This contains the knob row and steps */
-    flex-direction: column;
-    align-items: stretch;
-    width: 100%;
-    overflow: hidden; /* Ensure it doesn't break layout */
+  .mute-solo-group {
+    gap: 4px;
   }
 
-  .track-main {
-    gap: 12px;
+  /* Touch-friendly M/S buttons */
+  .ms-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 0.85rem;
+    min-width: 40px;
   }
 
-  /* Wrap params (sliders) on mobile to avoid overflow */
+  /* -------------------- TRACK PARAMS -------------------- */
   .track-params {
     flex-wrap: wrap;
-    gap: 12px;
-    height: auto; /* Allow height to grow */
-    padding: 8px 0; /* Add vertical breathing room */
-  }
-
-  /* Scrollable Steps */
-  .steps-container {
-    overflow-x: auto;
-    padding-bottom: 8px; /* Space for scrollbar if visible */
+    gap: 8px;
+    padding: 8px 0;
+    border-left: none;
+    border-right: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
     width: 100%;
-    /* Ensure scrolling momentum on iOS */
-    -webkit-overflow-scrolling: touch;
   }
 
-  .bass-steps-container {
+  .param-item {
+    flex: 1 0 45%;
+    min-width: 100px;
+  }
+
+  .param-item label {
+    font-size: 0.55rem;
+  }
+
+  .param-item input[type="range"] {
+    width: 100%;
+    height: 24px;
+    min-height: 24px;
+  }
+
+  /* -------------------- STEP GRID (Scrollable for iPad) -------------------- */
+  .track-grid-row {
+    width: 100%;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+
+  .steps-container,
+  .bass-steps-container,
+  .pad-steps-container {
+    display: flex;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     padding-bottom: 8px;
-    width: 100%;
-    -webkit-overflow-scrolling: touch;
+    margin-left: 0;
+    scroll-snap-type: x mandatory;
+    gap: 8px;
   }
 
-  /* Adjust knob row to wrap */
-  .knob-row {
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 12px 8px;
-  }
-
-  .knob-row label {
-    font-size: 0.6rem;
-  }
-
-  /* Make sliders fuller width on mobile for easier touch */
-  .knob-row input[type="range"] {
-    flex: 1;
-    min-width: 80px;
-  }
-
-  /* Improve touch targets for steps */
-  .step {
-    width: 32px;
-    height: 32px;
-    flex-shrink: 0; /* Don't shrink steps */
-  }
-
-  .bass-step-wrapper {
+  .step-group {
+    scroll-snap-align: start;
     flex-shrink: 0;
   }
-  
-  .note-select {
-    width: 32px;
+
+  /* Touch-friendly steps (larger for iPad) */
+  .step {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    min-width: 40px;
   }
 
-  .pad-steps-container {
-    overflow-x: auto;
-    padding-bottom: 8px;
-    width: 100%;
-    -webkit-overflow-scrolling: touch;
+  .step-velocity {
+    font-size: 0.55rem;
   }
 
+  .bass-step-wrapper .step,
+  .pad-step-wrapper .step {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+  }
+
+  /* -------------------- BASS/PAD STEP WRAPPERS -------------------- */
+  .bass-step-wrapper,
   .pad-step-wrapper {
     flex-shrink: 0;
   }
-  
+
+  .note-select,
   .voicing-select {
-    width: 32px;
-    font-size: 0.4rem;
+    width: 40px;
+    font-size: 0.55rem;
+    padding: 4px 2px;
+    min-height: 28px;
   }
 
-  /* Visualizer height */
-  .visualizer-container {
-    min-height: 100px;
-    margin-bottom: 20px;
+  /* Larger +/- buttons */
+  .note-stepper {
+    gap: 2px;
   }
-  
-  /* Ensure mute/solo buttons are tap-friendly */
-  .ms-btn {
-    width: 34px;
-    height: 34px;
-    font-size: 0.8rem;
+
+  .note-stepper-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 1.1rem;
+    min-width: 28px;
+  }
+
+  /* -------------------- PIANO ROLL -------------------- */
+  .piano-roll-container {
+    height: 200px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+
+  .piano-keys {
+    width: 45px;
+  }
+
+  .piano-key {
+    height: 18px;
+    font-size: 0.5rem;
+    padding-left: 4px;
+  }
+
+  .piano-grid-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .piano-row {
+    height: 18px;
+  }
+
+  .piano-cell {
+    width: 36px;
+    min-width: 36px;
+  }
+
+  /* -------------------- KNOBS (touch-friendly) -------------------- */
+  .knob-container {
+    transform: none;
+    margin: 0;
+  }
+
+  /* Scale knobs up for touch */
+  .track-eq-sends-column .knob-container {
+    min-width: 36px;
+  }
+
+  /* -------------------- VISUALIZER -------------------- */
+  .visualizer-container {
+    height: 80px;
+    min-height: 80px;
+    max-height: 80px;
+    margin-top: 8px;
+  }
+
+  /* -------------------- PRO MODE PANEL -------------------- */
+  .pro-mode-panel {
+    padding: 10px;
+    margin: 0 0 8px 0;
+  }
+
+  .pro-section {
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+
+  .pro-section h3 {
+    font-size: 0.65rem;
+    margin-bottom: 10px;
+  }
+
+  .pro-params {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .pro-param-item input[type="range"] {
+    height: 24px;
+  }
+
+  .radio-toggle {
+    font-size: 0.55rem;
+  }
+
+  .radio-toggle-check {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* ============================================
+   Extra Small Phones (< 400px)
+   ============================================ */
+@media (max-width: 400px) {
+  h1 {
+    font-size: 0.85rem;
+    letter-spacing: 2px;
+  }
+
+  .controls button {
+    padding: 10px 16px;
+    font-size: 0.75rem;
+  }
+
+  .scene-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .scene-action-btn {
+    padding: 6px 8px;
+    font-size: 0.5rem;
+  }
+
+  .step {
+    width: 36px;
+    height: 36px;
+  }
+
+  .note-select,
+  .voicing-select {
+    width: 36px;
+    font-size: 0.5rem;
+  }
+
+  .param-item {
+    flex: 1 0 100%;
+  }
+
+  .track-right-section {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .track-gain-column {
+    width: 100%;
+  }
+
+  .track-eq-sends-column {
+    width: 100%;
+    justify-content: space-evenly;
+  }
+}
+
+/* ============================================
+   Phone Portrait - 4x4 Step Grid Layout
+   ============================================ */
+@media (max-width: 600px) {
+  /* Override scrollable steps to use 4x4 grid */
+  .track-grid-row {
+    overflow: visible;
+  }
+
+  .steps-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+
+  /* Each quarter-note group becomes its own row */
+  .step-group {
+    flex: 0 0 100%;
+    display: flex;
+    justify-content: center;
+    gap: var(--gap);
+    background: var(--bg-tertiary);
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* Larger touch targets for phone */
+  .step {
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
+  }
+
+  /* Bass and Pad also get 4x4 grid */
+  .bass-steps-container,
+  .pad-steps-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+
+  .step-group.bass-group,
+  .step-group.pad-group {
+    flex: 0 0 100%;
+    display: flex;
+    justify-content: center;
+    gap: var(--gap);
+    padding: 6px 10px;
+  }
+
+  .bass-step-wrapper .step,
+  .pad-step-wrapper .step {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+  }
+
+  /* Note selectors slightly larger for touch */
+  .note-select,
+  .voicing-select {
+    width: 44px;
+    font-size: 0.55rem;
+    min-height: 30px;
+  }
+
+  /* Note stepper buttons larger for touch */
+  .note-stepper-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    font-size: 1.2rem;
+  }
+
+  /* Piano roll adjustments for phone */
+  .piano-roll-container {
+    height: 180px;
+  }
+
+  .piano-cell {
+    width: 40px;
+    min-width: 40px;
   }
 }
 

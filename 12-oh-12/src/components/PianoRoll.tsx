@@ -68,10 +68,24 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
     }
   };
 
+  // Touch event handlers for mobile
+  const handleTouchStart = (e: React.TouchEvent, stepIndex: number, note: number) => {
+    e.preventDefault(); // Prevent scrolling while drawing
+    setIsDrawing(true);
+    const currentNotes = steps[stepIndex] || [];
+    const hasNote = currentNotes.includes(note);
+    setDrawMode(!hasNote);
+    toggleNote(stepIndex, note);
+  };
+
   useEffect(() => {
     const handleUp = () => setIsDrawing(false);
     window.addEventListener('mouseup', handleUp);
-    return () => window.removeEventListener('mouseup', handleUp);
+    window.addEventListener('touchend', handleUp);
+    return () => {
+      window.removeEventListener('mouseup', handleUp);
+      window.removeEventListener('touchend', handleUp);
+    };
   }, []);
 
   /* 
@@ -145,6 +159,7 @@ export const PianoRoll: React.FC<PianoRollProps> = ({
                                             key={stepIndex}
                                             onMouseDown={() => handleMouseDown(stepIndex, note)}
                                             onMouseEnter={() => handleMouseEnter(stepIndex, note)}
+                                            onTouchStart={(e) => handleTouchStart(e, stepIndex, note)}
                                             className={`piano-cell ${active ? 'active' : ''} ${current ? 'current' : ''}`}
                                         />
                                     );

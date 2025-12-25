@@ -353,8 +353,8 @@ function App() {
   const handleVelocityWheel = useCallback((e: WheelEvent, inst: Instrument, step: number) => {
     if (!grid[inst][step]) return; // Only edit velocity if step is active
 
-    // Scroll UP (negative deltaY) => Increase Value
-    const d = e.deltaY < 0 ? 1 : -1;
+    // Scroll DOWN (positive deltaY) => Increase Value (macOS natural scrolling)
+    const d = e.deltaY > 0 ? 1 : -1;
     const amount = e.shiftKey ? 10 : 1;
     
     const current = velocities[inst][step] || 100;
