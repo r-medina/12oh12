@@ -13,6 +13,7 @@ export interface InstrumentParams {
   kick: {
     tune: number;
     decay: number;
+    distortion: number;
   };
   snare: {
     tone: number;
@@ -41,6 +42,42 @@ export interface InstrumentParams {
   };
 }
 
+export interface ProModeParams {
+  masterVolume: number;
+  masterCompressor: {
+    bypass: boolean;
+    threshold: number;
+    ratio: number;
+    attack: number;
+    release: number;
+  };
+  tapeChain: {
+    bypass: boolean;
+    compThreshold: number;
+    compRatio: number;
+    compAttack: number;
+    compRelease: number;
+    distortion: number;
+    filterCutoff: number;
+  };
+  reverb: {
+    bypass: boolean;
+    decay: number;
+    preDelay: number;
+    toneFilter: number;
+    preFilter: number;
+    postFilter: number;
+  };
+  delay: {
+    bypass: boolean;
+    time: string;
+    feedback: number;
+    preFilter: number;
+    postFilter: number;
+  };
+  trackEnabled: Record<string, boolean>;
+}
+
 export interface Scene {
   name: string;
   grid: Record<Instrument, boolean[]>;
@@ -57,6 +94,7 @@ export interface Scene {
   solos: Record<Instrument, boolean>;
   bpm: number;
   swing: number;
+  proModeParams?: ProModeParams;
 }
 
 

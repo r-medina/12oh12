@@ -163,6 +163,59 @@ h1 {
   text-align: center;
 }
 
+/* Pro Mode Toggle (styled same as theme toggle) */
+.pro-mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-secondary);
+  padding: 6px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  border: 1px solid var(--step-border);
+  transition: all 0.2s ease;
+}
+
+.pro-mode-toggle:hover {
+  border-color: var(--accent-primary);
+}
+
+.pro-mode-toggle-track {
+  width: 36px;
+  height: 18px;
+  background: var(--bg-tertiary);
+  border-radius: 9px;
+  position: relative;
+  transition: background-color 0.2s ease;
+}
+
+.pro-mode-toggle-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s ease;
+}
+
+/* Move thumb when pro mode is active */
+:has(.pro-mode-panel) .pro-mode-toggle-thumb {
+  transform: translateX(18px);
+}
+
+.pro-mode-toggle-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  width: 32px;
+  text-align: center;
+}
+
+
 /* ============================================
    Controls Section
    ============================================ */
@@ -219,11 +272,175 @@ h1 {
 .controls input[type="range"] {
   width: 150px;
   cursor: pointer;
+  touch-action: none;
 }
 
 .controls input[type="range"].swing-slider {
   width: 120px;
 }
+
+/* ============================================
+   Pro Mode Panel
+   ============================================ */
+
+.pro-mode-panel {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--accent-primary);
+  box-shadow: 0 0 12px rgba(255, 87, 34, 0.2);
+}
+
+.pro-section {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.pro-section:last-child {
+  margin-bottom: 0;
+}
+
+.pro-section h3 {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--accent-primary);
+  letter-spacing: 1.5px;
+  margin-bottom: 12px;
+}
+
+.pro-params {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.pro-param-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pro-param-item label {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-left: 2px;
+}
+
+/* Radio Toggle Styling */
+.radio-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.radio-toggle input {
+  display: none;
+}
+
+.radio-toggle-check {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+/* Checked state */
+.radio-toggle input:checked + .radio-toggle-check {
+  border-color: var(--accent-primary);
+  background: rgba(255, 87, 34, 0.2);
+}
+
+.radio-toggle input:checked + .radio-toggle-check::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+}
+
+.radio-toggle:hover .radio-toggle-check {
+  border-color: var(--text-primary);
+}
+
+/* Slider Visibility Improvements */
+.pro-param-item input[type="range"] {
+  width: 100%;
+  height: 6px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  touch-action: none; /* Prevent page scroll when scrolling to change value */
+}
+
+.pro-param-item input[type="range"]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  background: #333; /* Darker track for better contrast in night mode */
+  border-radius: 2px;
+}
+
+[data-theme="day"] .pro-param-item input[type="range"]::-webkit-slider-runnable-track {
+  background: #ddd;
+}
+
+.pro-param-item input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  margin-top: -4px; /* Center thumb on track */
+  transition: transform 0.1s ease;
+}
+
+.pro-param-item input[type="range"]:hover::-webkit-slider-thumb {
+  transform: scale(1.1);
+}
+
+/* Disabled state for controls */
+.pro-param-item input[type="range"]:disabled,
+.pro-param-item select:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.radio-toggle input:disabled + .radio-toggle-check {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+
+/* Day mode pro panel styling */
+[data-theme="day"] .pro-mode-panel {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 8px rgba(255, 87, 34, 0.15);
+}
+
+[data-theme="day"] .pro-section {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
 
 /* ============================================
    Sequencer Grid
@@ -465,6 +682,7 @@ h1 {
 .param-item input[type="range"] {
   width: 100px;
   height: 6px;
+  touch-action: none; /* Prevent page scroll when scrolling to change value */
 }
 
 /* Section 3: Sends & EQ */
@@ -516,6 +734,7 @@ h1 {
   cursor: pointer;
   padding: 0;
   margin: 0;
+  touch-action: none; /* Prevent page scroll when scrolling to change value */
 }
 
 .vertical-slider.volume-slider {
@@ -710,6 +929,7 @@ h1 {
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.08s ease;
+  touch-action: none; /* Prevent page scroll when scrolling to change velocity */
 }
 
 .step:hover {
@@ -786,6 +1006,7 @@ h1 {
   cursor: pointer;
   text-align: center;
   transition: all 0.1s ease;
+  touch-action: none;
 }
 
 .note-select:hover {
@@ -880,6 +1101,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: 2px;
+  touch-action: none; /* Prevent page scroll when scrolling to change note */
 }
 
 .note-stepper-btn {

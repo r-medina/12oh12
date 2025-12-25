@@ -41,7 +41,7 @@ export class TapeChain {
     // 18kHz is a gentle roll-off, not muffled.
     this.filter = new Tone.Filter({
       type: "lowpass",
-      frequency: 18000,
+      frequency: 19000,
       rolloff: -12,
       Q: 0.5
     });
@@ -61,5 +61,30 @@ export class TapeChain {
         this.input.disconnect();
         this.input.chain(this.distortion, this.compressor, this.filter, this.output);
     }
+  }
+
+  // Pro Mode Controls
+  public setCompressorThreshold(val: number) {
+    this.compressor.threshold.value = val;
+  }
+
+  public setCompressorRatio(val: number) {
+    this.compressor.ratio.value = val;
+  }
+
+  public setCompressorAttack(val: number) {
+    this.compressor.attack.value = val;
+  }
+
+  public setCompressorRelease(val: number) {
+    this.compressor.release.value = val;
+  }
+
+  public setDistortion(val: number) {
+    this.distortion.distortion = val;
+  }
+
+  public setFilterCutoff(val: number) {
+    this.filter.frequency.value = val;
   }
 }

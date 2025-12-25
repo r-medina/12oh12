@@ -21,7 +21,7 @@ export function Visualizer({ theme, isPlaying }: VisualizerProps) {
     // Sizing needs to be set regardless of ON/OFF state 
     // so the blank canvas is the right size
     const cols = 32;
-    const rows = 8;
+    const rows = 16;     // Unified high resolution
     const gap = 2;
     const pixelSize = 4;
     const masterCols = 2;
@@ -196,19 +196,57 @@ export function Visualizer({ theme, isPlaying }: VisualizerProps) {
          }
       }
 
-      // Draw Master Meter (ALWAYS)
+      // Draw Master Meter (ALWAYS) - Higher resolution with dB-based colors
       const masterXStart = (cols + 1) * (pixelSize + gap) + gap;
       
-      const masterMin = -60;
-      const masterMax = 0;
+      const masterMin = -60;  // dB floor
+      const masterMax = 6;    // dB ceiling (allow some over for clipping indication)
       let masterNorm = (masterLevelDb - masterMin) / (masterMax - masterMin);
-      masterNorm = Math.max(0, Math.min(1.2, masterNorm)); 
+      masterNorm = Math.max(0, Math.min(1.0, masterNorm)); 
 
       const masterLit = Math.floor(masterNorm * rows);
-      const isMasterClipping = masterLevelDb > -0.5;
+      
+      // Calculate the row that corresponds to 0 dB for the reference line
+      const zeroDbNorm = (0 - masterMin) / (masterMax - masterMin);
+      const zeroDbRow = Math.floor(zeroDbNorm * rows);
+
+      // Color function for master meter based on dB level
+      // Maps row position to dB level and returns appropriate color
+      const getMasterColor = (row: number): string => {
+        const rowDb = masterMin + (row / rows) * (masterMax - masterMin);
+        
+        if (rowDb >= 0) {
+          // Clipping zone: red to white
+          const factor = Math.min(1, (rowDb) / 6);
+          const r = 255;
+          const g = Math.round(50 + factor * 205);
+          const b = Math.round(50 + factor * 205);
+          return `rgb(${r}, ${g}, ${b})`;
+        } else if (rowDb >= -6) {
+          // Hot zone (-6 to 0): orange to red
+          const factor = (rowDb + 6) / 6;
+          const r = 255;
+          const g = Math.round(165 - factor * 115); // 165 -> 50
+          const b = 0;
+          return `rgb(${r}, ${g}, ${b})`;
+        } else if (rowDb >= -18) {
+          // Caution zone (-18 to -6): yellow to orange  
+          const factor = (rowDb + 18) / 12;
+          const r = 255;
+          const g = Math.round(220 - factor * 55); // 220 -> 165
+          const b = 0;
+          return `rgb(${r}, ${g}, ${b})`;
+        } else {
+          // Safe zone (below -18): green to yellow
+          const factor = (rowDb + 60) / 42; // -60 to -18
+          const r = Math.round(factor * 255); // 0 -> 255
+          const g = Math.round(180 + factor * 40); // 180 -> 220
+          const b = 0;
+          return `rgb(${r}, ${g}, ${b})`;
+        }
+      };
 
        // Peak hold for Master
-       // We use the slots after 'cols' for master channels (merged here as 1 visuals, but let's just use index 'cols')
        const masterPeakIdx = cols;
        const masterPeak = peaksRef.current[masterPeakIdx];
        
@@ -229,13 +267,20 @@ export function Visualizer({ theme, isPlaying }: VisualizerProps) {
           const y = height - ((r + 1) * (pixelSize + gap));
           const x = masterXStart;
           
+          // Draw 0 dB reference line (dim outline on the 0dB row)
+          const isZeroDbRow = r === zeroDbRow;
+          
           if (r < masterLit) {
-               const color = getPixelColor(r, isMasterClipping);
+               const color = getMasterColor(r);
                ctx.fillStyle = color;
                ctx.shadowColor = color;
                ctx.shadowBlur = 1;
           } else if (r === masterPeakPixel && masterPeak.val > 0.05) {
                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+               ctx.shadowBlur = 0;
+          } else if (isZeroDbRow) {
+               // 0 dB reference line - slightly brighter than inactive
+               ctx.fillStyle = theme === 'night' ? '#555555' : '#999999';
                ctx.shadowBlur = 0;
           } else {
               ctx.fillStyle = inactiveColor;

@@ -146,7 +146,10 @@ const kick = new Tone.MembraneSynth({
     release: 1.4,
     attackCurve: 'exponential'
   }
-}).connect(kickVol);
+});
+
+const kickDistortion = new Tone.Distortion(0).connect(kickVol);
+kick.connect(kickDistortion);
 
 const snare = new Tone.NoiseSynth({
   noise: { type: 'white' },
@@ -321,6 +324,11 @@ let currentSolos: Record<Instrument, boolean> = {
   kick909: false, snare909: false, hihat909: false, clap909: false,
   bass: false, pad: false
 };
+let currentEnabledTracks: Record<Instrument, boolean> = {
+  kick: true, snare: true, hihat: true, clap: true,
+  kick909: true, snare909: true, hihat909: true, clap909: true,
+  bass: true, pad: true
+};
 let setStepCallback: (step: number) => void = () => {};
 
 // -- Loop --
@@ -330,6 +338,7 @@ const loop = new Tone.Sequence(
     const isAnySolo = Object.values(currentSolos).some(v => v);
 
     const shouldPlay = (inst: Instrument) => {
+      if (!currentEnabledTracks[inst]) return false;
       if (isAnySolo) {
         return currentSolos[inst];
       }
@@ -441,6 +450,10 @@ export const AudioEngine = {
   },
   setKickDecay: (val: number) => {
     kick.envelope.decay = val;
+  },
+  setKickDistortion: (val: number) => {
+    kickDistortion.distortion = val;
+    kickDistortion.wet.value = val > 0 ? 1 : 0;
   },
 
   // Snare
@@ -593,5 +606,99 @@ export const AudioEngine = {
 
   getMasterLevel: () => {
     return meter.getValue(); // Returns number (decibels)
+  },
+
+  // Pro Mode Controls
+  // Master Volume
+  setMasterVolume: (val: number) => {
+    masterVol.volume.value = val;
+  },
+
+  // Master Compressor
+  setMasterCompressorThreshold: (val: number) => {
+    masterCompressor.threshold.value = val;
+  },
+  setMasterCompressorRatio: (val: number) => {
+    masterCompressor.ratio.value = val;
+  },
+  setMasterCompressorAttack: (val: number) => {
+    masterCompressor.attack.value = val;
+  },
+  setMasterCompressorRelease: (val: number) => {
+    masterCompressor.release.value = val;
+  },
+
+  // Tape Chain
+  setTapeBypass: (bypass: boolean) => {
+    tapeChain.setBypass(bypass);
+  },
+  setTapeCompressorThreshold: (val: number) => {
+    tapeChain.setCompressorThreshold(val);
+  },
+  setTapeCompressorRatio: (val: number) => {
+    tapeChain.setCompressorRatio(val);
+  },
+  setTapeCompressorAttack: (val: number) => {
+    tapeChain.setCompressorAttack(val);
+  },
+  setTapeCompressorRelease: (val: number) => {
+    tapeChain.setCompressorRelease(val);
+  },
+  setTapeDistortion: (val: number) => {
+    tapeChain.setDistortion(val);
+  },
+  setTapeFilterCutoff: (val: number) => {
+    tapeChain.setFilterCutoff(val);
+  },
+
+  // Reverb
+  setReverbDecay: (val: number) => {
+    reverb.decay = val;
+  },
+  setReverbPreDelay: (val: number) => {
+    reverb.preDelay = val;
+  },
+  setReverbToneFilter: (val: number) => {
+    reverbToneFilter.frequency.value = val;
+  },
+  setReverbPreFilter: (val: number) => {
+    reverbPreFilter.frequency.value = val;
+  },
+  setReverbPostFilter: (val: number) => {
+    reverbPostFilter.frequency.value = val;
+  },
+
+  // Delay
+  setDelayTime: (val: string) => {
+    delay.delayTime.value = val;
+  },
+  setDelayFeedback: (val: number) => {
+    delay.feedback.value = val;
+  },
+  setDelayPreFilter: (val: number) => {
+    delayPreFilter.frequency.value = val;
+  },
+  setDelayPostFilter: (val: number) => {
+    delayPostFilter.frequency.value = val;
+  },
+
+  // Bypass controls
+  setMasterCompressorBypass: (bypass: boolean) => {
+    // Tone.js doesn't have a built-in bypass, so we'll use wet/dry or connect/disconnect
+    // For now, we can set the threshold very high to effectively disable it
+    if (bypass) {
+      masterCompressor.threshold.value = 0; // No compression
+      masterCompressor.ratio.value = 1; // 1:1 ratio = no compression
+    }
+    // When un-bypassed, the current settings will be re-applied by the handler
+  },
+  setReverbBypass: (bypass: boolean) => {
+    reverb.wet.value = bypass ? 0 : 1;
+  },
+  setDelayBypass: (bypass: boolean) => {
+    delay.wet.value = bypass ? 0 : 1;
+  },
+  setTrackEnabled: (inst: Instrument, enabled: boolean) => {
+    currentEnabledTracks[inst] = enabled;
   }
 };

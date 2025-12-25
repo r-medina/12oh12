@@ -5,9 +5,13 @@ import { TrackRow } from './components/TrackRow';
 import { NoteStepper, midiToNoteName } from './components/NoteStepper';
 import { SceneSelector } from './components/SceneSelector';
 import { ShortcutHelp } from './components/ShortcutHelp';
+import { ProModeControls } from './components/ProModeControls';
+import { ScrollableSlider } from './components/ScrollableSlider';
+import { Step } from './components/Step';
+import { ScrollableSelect } from './components/ScrollableSelect';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { loadScenes, saveScenes, createEmptyScene, downloadScene, importScene } from './utils/storage';
-import type { Instrument, Scene, InstrumentParams } from './types';
+import type { Instrument, Scene, InstrumentParams, ProModeParams } from './types';
 
 // Initial Pattern: Basic House Beat
 const INITIAL_GRID: Record<Instrument, boolean[]> = {
@@ -54,12 +58,55 @@ const INITIAL_EQ_GAINS: Record<Instrument, { low: number; mid: number; high: num
 };
 
 const INITIAL_PARAMS: InstrumentParams = {
-  kick: { tune: 0.05, decay: 0.4 },
+  kick: { tune: 0.05, decay: 0.4, distortion: 0 },
   snare: { tone: 3000, snappy: 0.2 },
   hihat: { decay: 0.2, tone: 3000 },
   clap: { decay: 0.3, tone: 1500 },
   bass: { cutoff: 200, resonance: 2, envMod: 2, decay: 0.2 },
   pad: { attack: 0.3, release: 1.5, cutoff: 2000, detune: 12, distortion: 0 }
+};
+
+const INITIAL_PRO_MODE_PARAMS: ProModeParams = {
+  masterVolume: 0,
+  masterCompressor: {
+    bypass: false,
+    threshold: -20,
+    ratio: 2,
+    attack: 0.05,
+    release: 0.2
+  },
+  tapeChain: {
+    bypass: false,
+    compThreshold: -20,
+    compRatio: 2,
+    compAttack: 0.01,
+    compRelease: 0.2,
+    distortion: 0.05,
+    filterCutoff: 18000
+  },
+  reverb: {
+    bypass: false,
+    decay: 4.0,
+    preDelay: 0.05,
+    toneFilter: 600,
+    preFilter: 150,
+    postFilter: 95
+  },
+  delay: {
+    bypass: false,
+    time: "8n.",
+    feedback: 0.4,
+    preFilter: 150,
+    postFilter: 95
+  },
+  trackEnabled: {
+    kick: true,
+    snare: true,
+    hihat: true,
+    clap: true,
+    bass: true,
+    pad: true
+  }
 };
 
 function App() {
@@ -85,6 +132,8 @@ function App() {
     return vels;
   });
   const [params, setParams] = useState<InstrumentParams>(INITIAL_PARAMS);
+  const [proMode, setProMode] = useState(false);
+  const [proModeParams, setProModeParams] = useState<ProModeParams>(INITIAL_PRO_MODE_PARAMS);
 
   // Scene management
   const [scenes, setScenes] = useState<Scene[]>(() => loadScenes());
@@ -153,6 +202,7 @@ function App() {
           // Sync Params
           AudioEngine.setKickPitchDecay(params.kick.tune);
           AudioEngine.setKickDecay(params.kick.decay);
+          AudioEngine.setKickDistortion(params.kick.distortion);
           AudioEngine.setSnareTone(params.snare.tone);
           AudioEngine.setSnareDecay(params.snare.snappy);
           AudioEngine.setHiHatDecay(params.hihat.decay);
@@ -173,6 +223,35 @@ function App() {
           AudioEngine.updatePadPitches(padPitches);
           AudioEngine.updatePadVoicings(padVoicings);
           AudioEngine.updateVelocities(velocities);
+
+          // Sync Pro Mode Params
+          AudioEngine.setMasterVolume(proModeParams.masterVolume);
+          AudioEngine.setMasterCompressorBypass(proModeParams.masterCompressor.bypass);
+          AudioEngine.setMasterCompressorThreshold(proModeParams.masterCompressor.threshold);
+          AudioEngine.setMasterCompressorRatio(proModeParams.masterCompressor.ratio);
+          AudioEngine.setMasterCompressorAttack(proModeParams.masterCompressor.attack);
+          AudioEngine.setMasterCompressorRelease(proModeParams.masterCompressor.release);
+          
+          AudioEngine.setTapeBypass(proModeParams.tapeChain.bypass);
+          AudioEngine.setTapeCompressorThreshold(proModeParams.tapeChain.compThreshold);
+          AudioEngine.setTapeCompressorRatio(proModeParams.tapeChain.compRatio);
+          AudioEngine.setTapeCompressorAttack(proModeParams.tapeChain.compAttack);
+          AudioEngine.setTapeCompressorRelease(proModeParams.tapeChain.compRelease);
+          AudioEngine.setTapeDistortion(proModeParams.tapeChain.distortion);
+          AudioEngine.setTapeFilterCutoff(proModeParams.tapeChain.filterCutoff);
+          
+          AudioEngine.setReverbBypass(proModeParams.reverb.bypass);
+          AudioEngine.setReverbDecay(proModeParams.reverb.decay);
+          AudioEngine.setReverbPreDelay(proModeParams.reverb.preDelay);
+          AudioEngine.setReverbToneFilter(proModeParams.reverb.toneFilter);
+          AudioEngine.setReverbPreFilter(proModeParams.reverb.preFilter);
+          AudioEngine.setReverbPostFilter(proModeParams.reverb.postFilter);
+          
+          AudioEngine.setDelayBypass(proModeParams.delay.bypass);
+          AudioEngine.setDelayTime(proModeParams.delay.time);
+          AudioEngine.setDelayFeedback(proModeParams.delay.feedback);
+          AudioEngine.setDelayPreFilter(proModeParams.delay.preFilter);
+          AudioEngine.setDelayPostFilter(proModeParams.delay.postFilter);
 
           AudioEngine.onStep((step) => {
             setCurrentStep(step);
@@ -250,65 +329,6 @@ function App() {
     AudioEngine.setChannelEQ(inst, band, val);
   };
 
-  const handleVolumeWheel = (e: React.WheelEvent<HTMLInputElement>, inst: Instrument) => {
-    e.preventDefault();
-    const current = volumes[inst];
-    const step = 1;
-    // deltaY > 0 = scroll up (for this user's setup) = increase volume
-    const delta = e.deltaY > 0 ? step : -step;
-    let newValue = current + delta;
-    
-    // Clamp to range
-    newValue = Math.max(-60, Math.min(0, newValue));
-    
-    // Snap to -12dB when crossing it, not when moving away
-    if (current < -12 && newValue >= -12 && newValue <= -10) {
-      newValue = -12;
-    } else if (current > -12 && newValue <= -12 && newValue >= -14) {
-      newValue = -12;
-    }
-    
-    if (newValue !== current) {
-      setVolumes({ ...volumes, [inst]: newValue });
-      AudioEngine.setVolume(inst, newValue);
-    }
-  };
-
-  const handleSliderWheel = (e: React.WheelEvent<HTMLInputElement>) => {
-    try {
-      if (e.cancelable) e.preventDefault();
-    } catch (err) {
-      // Ignore passive listener errors
-    }
-    
-    const input = e.currentTarget;
-    const min = parseFloat(input.min || "0");
-    const max = parseFloat(input.max || "100");
-    const step = parseFloat(input.step || "1");
-    const current = parseFloat(input.value);
-    
-    // Scroll direction: deltaY > 0 is "Up" for this user's preference/setup
-    const delta = e.deltaY > 0 ? step : -step;
-    const newValue = Math.max(min, Math.min(max, current + delta));
-
-    if (newValue === current) return;
-
-    // Support for React controlled inputs by bypassing its internal value tracking
-    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-      window.HTMLInputElement.prototype, 
-      "value"
-    )?.set;
-    
-    if (nativeInputValueSetter) {
-      nativeInputValueSetter.call(input, String(newValue));
-    } else {
-      input.value = String(newValue);
-    }
-    
-    // Dispatch events to trigger React's onChange
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-  };
 
   const handleSwingChange = (val: number) => {
     setSwing(val);
@@ -321,9 +341,7 @@ function App() {
     AudioEngine.setBpm(newBpm);
   };
 
-  const handleVelocityWheel = (e: React.WheelEvent, inst: Instrument, step: number) => {
-    e.stopPropagation();
-    e.preventDefault();
+  const handleVelocityWheel = useCallback((e: WheelEvent, inst: Instrument, step: number) => {
     if (!grid[inst][step]) return; // Only edit velocity if step is active
 
     // Scroll UP (negative deltaY) => Increase Value
@@ -340,7 +358,7 @@ function App() {
     const newVelocities = { ...velocities, [inst]: newRow };
     setVelocities(newVelocities);
     AudioEngine.updateVelocities(newVelocities);
-  };
+  }, [grid, velocities]);
 
   /* Per-step Bass Pitches (MIDI notes) */
   const [bassPitches, setBassPitches] = useState<number[]>(new Array(16).fill(36)); // Default C2 (36)
@@ -353,16 +371,11 @@ function App() {
     AudioEngine.updateBassPitches(newPitches);
   };
 
-  const handleNoteWheel = (e: React.WheelEvent<HTMLSelectElement>, stepIndex: number) => {
-    e.preventDefault();
+  const handleNoteWheel = useCallback((e: WheelEvent, stepIndex: number) => {
     const current = bassPitches[stepIndex];
-    // User reported "Up" scroll was taking them to lower notes with previous logic (deltaY < 0 ? 1 : -1)
-    // This implies their "Up" scroll produces deltaY > 0.
-    // They want "Up" -> Higher Note (+1).
-    // So if deltaY > 0 (Up), we want +1.
     const delta = e.deltaY > 0 ? 1 : -1;
     handleBassPitchChange(stepIndex, current + delta);
-  };
+  }, [bassPitches]);
 
   const handleParamChange = (inst: keyof InstrumentParams, param: string, val: number) => {
     // Update state
@@ -378,6 +391,7 @@ function App() {
     if (inst === 'kick') {
       if (param === 'tune') AudioEngine.setKickPitchDecay(val);
       if (param === 'decay') AudioEngine.setKickDecay(val);
+      if (param === 'distortion') AudioEngine.setKickDistortion(val);
     } else if (inst === 'snare') {
       if (param === 'tone') AudioEngine.setSnareTone(val);
       if (param === 'snappy') AudioEngine.setSnareDecay(val);
@@ -405,7 +419,62 @@ function App() {
   const [padPitches, setPadPitches] = useState<number[]>(new Array(16).fill(48)); // Default C3 (48)
   const [padVoicings, setPadVoicings] = useState<string[]>(new Array(16).fill('single'));
 
-  // Save current state to active scene whenever it changes
+  // Handler for pro mode parameter changes
+  const handleProModeParamChange = (category: keyof ProModeParams, param: string, value: any) => {
+    if (category === 'masterVolume') {
+      setProModeParams({ ...proModeParams, masterVolume: value });
+      AudioEngine.setMasterVolume(value);
+    } else {
+      setProModeParams({
+        ...proModeParams,
+        [category]: {
+          ...(proModeParams[category] as any),
+          [param]: value
+        }
+      });
+
+      // Update AudioEngine based on category and param
+      if (category === 'masterCompressor') {
+        if (param === 'bypass') AudioEngine.setMasterCompressorBypass(value);
+        if (param === 'threshold') AudioEngine.setMasterCompressorThreshold(value);
+        if (param === 'ratio') AudioEngine.setMasterCompressorRatio(value);
+        if (param === 'attack') AudioEngine.setMasterCompressorAttack(value);
+        if (param === 'release') AudioEngine.setMasterCompressorRelease(value);
+      } else if (category === 'tapeChain') {
+        if (param === 'bypass') AudioEngine.setTapeBypass(value);
+        if (param === 'compThreshold') AudioEngine.setTapeCompressorThreshold(value);
+        if (param === 'compRatio') AudioEngine.setTapeCompressorRatio(value);
+        if (param === 'compAttack') AudioEngine.setTapeCompressorAttack(value);
+        if (param === 'compRelease') AudioEngine.setTapeCompressorRelease(value);
+        if (param === 'distortion') AudioEngine.setTapeDistortion(value);
+        if (param === 'filterCutoff') AudioEngine.setTapeFilterCutoff(value);
+      } else if (category === 'reverb') {
+        if (param === 'bypass') AudioEngine.setReverbBypass(value);
+        if (param === 'decay') AudioEngine.setReverbDecay(value);
+        if (param === 'preDelay') AudioEngine.setReverbPreDelay(value);
+        if (param === 'toneFilter') AudioEngine.setReverbToneFilter(value);
+        if (param === 'preFilter') AudioEngine.setReverbPreFilter(value);
+        if (param === 'postFilter') AudioEngine.setReverbPostFilter(value);
+      } else if (category === 'delay') {
+        if (param === 'bypass') AudioEngine.setDelayBypass(value);
+        if (param === 'time') AudioEngine.setDelayTime(value);
+        if (param === 'feedback') AudioEngine.setDelayFeedback(value);
+        if (param === 'preFilter') AudioEngine.setDelayPreFilter(value);
+        if (param === 'postFilter') AudioEngine.setDelayPostFilter(value);
+      } else if (category === 'trackEnabled') {
+        setProModeParams({
+          ...proModeParams,
+          trackEnabled: {
+            ...proModeParams.trackEnabled,
+            [param]: value
+          }
+        });
+        AudioEngine.setTrackEnabled(param as Instrument, value);
+      }
+    }
+  };
+
+  // Save current state to active scene whenever it changes  
   useEffect(() => {
     const currentScene: Scene = {
       name: scenes[activeSceneIndex].name,
@@ -417,20 +486,20 @@ function App() {
       velocities,
       reverbSends,
       delaySends,
-
       eqGains,
       params,
       mutes,
       solos,
       bpm,
       swing,
+      proModeParams
     };
 
     const newScenes = [...scenes];
     newScenes[activeSceneIndex] = currentScene;
     setScenes(newScenes);
     saveScenes(newScenes);
-  }, [grid, bassPitches, padPitches, padVoicings, volumes, velocities, reverbSends, delaySends, eqGains, params, mutes, solos, bpm, swing]);
+  }, [grid, bassPitches, padPitches, padVoicings, volumes, velocities, reverbSends, delaySends, eqGains, params, mutes, solos, bpm, swing, proModeParams]);
 
   // Scene Management Handlers
   const loadSceneState = useCallback((scene: Scene) => {
@@ -456,6 +525,10 @@ function App() {
        return v;
     })();
     setVelocities(safeVelocities);
+
+    // Load pro mode params or use defaults
+    const safeProModeParams = scene.proModeParams || INITIAL_PRO_MODE_PARAMS;
+    setProModeParams(safeProModeParams);
 
     // Sync to audio engine
     AudioEngine.setBpm(scene.bpm);
@@ -497,7 +570,44 @@ function App() {
     AudioEngine.setPadRelease(p.pad.release);
     AudioEngine.setPadFilterCutoff(p.pad.cutoff);
     AudioEngine.setPadDetune(p.pad.detune);
+    AudioEngine.setPadDetune(p.pad.detune);
     AudioEngine.setPadDistortion(p.pad.distortion);
+    
+    AudioEngine.setKickDistortion(p.kick.distortion || 0);
+
+    // Sync pro mode params to AudioEngine
+    AudioEngine.setMasterVolume(safeProModeParams.masterVolume);
+    AudioEngine.setMasterCompressorThreshold(safeProModeParams.masterCompressor.threshold);
+    AudioEngine.setMasterCompressorRatio(safeProModeParams.masterCompressor.ratio);
+    AudioEngine.setMasterCompressorAttack(safeProModeParams.masterCompressor.attack);
+    AudioEngine.setMasterCompressorRelease(safeProModeParams.masterCompressor.release);
+    
+    AudioEngine.setTapeBypass(safeProModeParams.tapeChain.bypass);
+    AudioEngine.setTapeCompressorThreshold(safeProModeParams.tapeChain.compThreshold);
+    AudioEngine.setTapeCompressorRatio(safeProModeParams.tapeChain.compRatio);
+    AudioEngine.setTapeCompressorAttack(safeProModeParams.tapeChain.compAttack);
+    AudioEngine.setTapeCompressorRelease(safeProModeParams.tapeChain.compRelease);
+    AudioEngine.setTapeDistortion(safeProModeParams.tapeChain.distortion);
+    AudioEngine.setTapeFilterCutoff(safeProModeParams.tapeChain.filterCutoff);
+    
+    AudioEngine.setMasterCompressorBypass(safeProModeParams.masterCompressor.bypass);
+    AudioEngine.setReverbBypass(safeProModeParams.reverb.bypass);
+    AudioEngine.setReverbDecay(safeProModeParams.reverb.decay);
+    AudioEngine.setReverbPreDelay(safeProModeParams.reverb.preDelay);
+    AudioEngine.setReverbToneFilter(safeProModeParams.reverb.toneFilter);
+    AudioEngine.setReverbPreFilter(safeProModeParams.reverb.preFilter);
+    AudioEngine.setReverbPostFilter(safeProModeParams.reverb.postFilter);
+    
+    AudioEngine.setDelayBypass(safeProModeParams.delay.bypass);
+    AudioEngine.setDelayTime(safeProModeParams.delay.time);
+    AudioEngine.setDelayFeedback(safeProModeParams.delay.feedback);
+    AudioEngine.setDelayPreFilter(safeProModeParams.delay.preFilter);
+    AudioEngine.setDelayPostFilter(safeProModeParams.delay.postFilter);
+
+    // Sync track enablement
+    Object.entries(safeProModeParams.trackEnabled).forEach(([inst, enabled]) => {
+      AudioEngine.setTrackEnabled(inst as Instrument, enabled);
+    });
   }, []);
 
   const handleSceneSelect = useCallback((index: number) => {
@@ -653,12 +763,11 @@ function App() {
     AudioEngine.updatePadVoicings(newVoicings);
   };
 
-  const handlePadNoteWheel = (e: React.WheelEvent<HTMLSelectElement>, stepIndex: number) => {
-    e.preventDefault();
+  const handlePadNoteWheel = useCallback((e: WheelEvent, stepIndex: number) => {
     const current = padPitches[stepIndex];
     const delta = e.deltaY > 0 ? 1 : -1;
     handlePadPitchChange(stepIndex, current + delta);
-  };
+  }, [padPitches]);
   
   return (
     <div className="container">
@@ -668,6 +777,12 @@ function App() {
           <button className="help-btn" onClick={() => setShowShortcutHelp(true)} title="Keyboard Shortcuts (?)">
             ?
           </button>
+          <div className="pro-mode-toggle" onClick={() => setProMode(!proMode)}>
+            <span className="pro-mode-toggle-label">{proMode ? 'pro' : 'reg'}</span>
+            <div className="pro-mode-toggle-track">
+              <div className="pro-mode-toggle-thumb" />
+            </div>
+          </div>
           <div className="theme-toggle" onClick={toggleTheme}>
             <span className="theme-toggle-label">{theme === 'night' ? 'night' : 'day'}</span>
             <div className="theme-toggle-track">
@@ -690,27 +805,23 @@ function App() {
 
         <div className="control-group">
           <label>BPM: {bpm}</label>
-          <input 
-            type="range" 
-            min="65" 
-            max="175" 
+          <ScrollableSlider 
+            min={65}
+            max={175}
             value={bpm} 
             onChange={handleBpmChange}
-            onWheel={handleSliderWheel}
           />
         </div>
 
         <div className="control-group">
           <label>Swing: {Math.round(swing * 100)}%</label>
-          <input 
-            type="range"
+          <ScrollableSlider
             className="swing-slider"
-            min="0" 
-            max="0.5" 
-            step="0.02"
+            min={0}
+            max={0.5}
+            step={0.02}
             value={swing}
             onChange={(e) => handleSwingChange(Number(e.target.value))}
-            onWheel={handleSliderWheel}
           />
         </div>
       </div>
@@ -727,8 +838,18 @@ function App() {
         onExport={handleExport}
       />
 
+      {proMode && (
+        <ProModeControls
+          params={proModeParams}
+          onParamChange={handleProModeParamChange}
+        />
+      )}
+
+
+
       <div className="sequencer-grid">
         {/* Kick */}
+        {(proModeParams.trackEnabled?.kick ?? true) && (
         <TrackRow
           label="kick"
           instrument="kick"
@@ -741,7 +862,7 @@ function App() {
           onMute={() => handleMute('kick')}
           onSolo={() => handleSolo('kick')}
           onVolumeChange={(v: number) => handleVolumeChange('kick', v)}
-          onVolumeWheel={(e: React.WheelEvent) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'kick')}
+
           onReverbSendChange={(v: number) => handleReverbSendChange('kick', v)}
           onDelaySendChange={(v: number) => handleDelaySendChange('kick', v)}
           onEQChange={(band: 'low' | 'mid' | 'high', v: number) => handleEQChange('kick', band, v)}
@@ -749,11 +870,15 @@ function App() {
             <>
               <div className="param-item">
                 <label>Tune</label>
-                <input type="range" min="0.01" max="0.3" step="0.01" value={params.kick.tune} onChange={e => handleParamChange('kick', 'tune', Number(e.target.value))} onWheel={handleSliderWheel} />
+                <ScrollableSlider min={0.01} max={0.3} step={0.01} value={params.kick.tune} onChange={e => handleParamChange('kick', 'tune', Number(e.target.value))} />
               </div>
               <div className="param-item">
                 <label>Decay</label>
-                <input type="range" min="0.1" max="2.0" step="0.1" value={params.kick.decay} onChange={e => handleParamChange('kick', 'decay', Number(e.target.value))} onWheel={handleSliderWheel} />
+                <ScrollableSlider min={0.1} max={2.0} step={0.1} value={params.kick.decay} onChange={e => handleParamChange('kick', 'decay', Number(e.target.value))} />
+              </div>
+              <div className="param-item">
+                <label>Dist</label>
+                <ScrollableSlider min={0} max={0.6} step={0.01} value={params.kick.distortion || 0} onChange={e => handleParamChange('kick', 'distortion', Number(e.target.value))} />
               </div>
             </>
           }
@@ -766,23 +891,25 @@ function App() {
                   const isActive = grid.kick[stepIndex];
                   const stepVel = velocities.kick[stepIndex];
                   return (
-                    <div
+                    <Step
                       key={stepIndex}
-                      className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
+                      isActive={isActive}
+                      isCurrent={currentStep === stepIndex && isPlaying}
+                      velocity={stepVel}
                       onMouseDown={() => handleStepMouseDown('kick', stepIndex)}
                       onMouseEnter={() => handleStepMouseEnter('kick', stepIndex)}
                       onWheel={(e) => handleVelocityWheel(e, 'kick', stepIndex)}
-                    >
-                      {isActive && <div className="step-velocity">{stepVel}</div>}
-                    </div>
+                    />
                   );
                 })}
               </div>
             ))}
           </div>
         </TrackRow>
+        )}
 
         {/* Snare */}
+        {(proModeParams.trackEnabled?.snare ?? true) && (
         <TrackRow
           label="snare"
           instrument="snare"
@@ -795,7 +922,7 @@ function App() {
           onMute={() => handleMute('snare')}
           onSolo={() => handleSolo('snare')}
           onVolumeChange={(v: number) => handleVolumeChange('snare', v)}
-          onVolumeWheel={(e: React.WheelEvent) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'snare')}
+
           onReverbSendChange={(v: number) => handleReverbSendChange('snare', v)}
           onDelaySendChange={(v: number) => handleDelaySendChange('snare', v)}
           onEQChange={(band: 'low' | 'mid' | 'high', v: number) => handleEQChange('snare', band, v)}
@@ -803,11 +930,11 @@ function App() {
             <>
               <div className="param-item">
                 <label>Tone</label>
-                <input type="range" min="400" max="6000" step="100" value={params.snare.tone} onChange={e => handleParamChange('snare', 'tone', Number(e.target.value))} onWheel={handleSliderWheel} />
+                <ScrollableSlider min={400} max={6000} step={100} value={params.snare.tone} onChange={e => handleParamChange('snare', 'tone', Number(e.target.value))} />
               </div>
               <div className="param-item">
                 <label>Snappy</label>
-                <input type="range" min="0.05" max="0.5" step="0.01" value={params.snare.snappy} onChange={e => handleParamChange('snare', 'snappy', Number(e.target.value))} onWheel={handleSliderWheel} />
+                <ScrollableSlider min={0.05} max={0.5} step={0.01} value={params.snare.snappy} onChange={e => handleParamChange('snare', 'snappy', Number(e.target.value))} />
               </div>
             </>
           }
@@ -820,23 +947,25 @@ function App() {
                   const isActive = grid.snare[stepIndex];
                   const stepVel = velocities.snare[stepIndex];
                   return (
-                    <div
+                    <Step
                       key={stepIndex}
-                      className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
+                      isActive={isActive}
+                      isCurrent={currentStep === stepIndex && isPlaying}
+                      velocity={stepVel}
                       onMouseDown={() => handleStepMouseDown('snare', stepIndex)}
                       onMouseEnter={() => handleStepMouseEnter('snare', stepIndex)}
                       onWheel={(e) => handleVelocityWheel(e, 'snare', stepIndex)}
-                    >
-                      {isActive && <div className="step-velocity">{stepVel}</div>}
-                    </div>
+                    />
                   );
                 })}
               </div>
             ))}
           </div>
         </TrackRow>
+        )}
 
         {/* HiHat */}
+        {(proModeParams.trackEnabled?.hihat ?? true) && (
         <TrackRow
           label="hihat"
           instrument="hihat"
@@ -849,7 +978,7 @@ function App() {
           onMute={() => handleMute('hihat')}
           onSolo={() => handleSolo('hihat')}
           onVolumeChange={(v: number) => handleVolumeChange('hihat', v)}
-          onVolumeWheel={(e: React.WheelEvent) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'hihat')}
+
           onReverbSendChange={(v: number) => handleReverbSendChange('hihat', v)}
           onDelaySendChange={(v: number) => handleDelaySendChange('hihat', v)}
           onEQChange={(band: 'low' | 'mid' | 'high', v: number) => handleEQChange('hihat', band, v)}
@@ -857,11 +986,11 @@ function App() {
             <>
               <div className="param-item">
                 <label>Decay</label>
-                <input type="range" min="0.05" max="1.0" step="0.01" value={params.hihat.decay} onChange={e => handleParamChange('hihat', 'decay', Number(e.target.value))} onWheel={handleSliderWheel} />
+                <ScrollableSlider min={0.05} max={1.0} step={0.01} value={params.hihat.decay} onChange={e => handleParamChange('hihat', 'decay', Number(e.target.value))} />
               </div>
               <div className="param-item">
                 <label>Tone</label>
-                <input type="range" min="500" max="10000" step="100" value={params.hihat.tone} onChange={e => handleParamChange('hihat', 'tone', Number(e.target.value))} onWheel={handleSliderWheel} />
+                <ScrollableSlider min={500} max={10000} step={100} value={params.hihat.tone} onChange={e => handleParamChange('hihat', 'tone', Number(e.target.value))} />
               </div>
             </>
           }
@@ -874,23 +1003,25 @@ function App() {
                   const isActive = grid.hihat[stepIndex];
                   const stepVel = velocities.hihat[stepIndex];
                   return (
-                    <div
+                    <Step
                       key={stepIndex}
-                      className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
+                      isActive={isActive}
+                      isCurrent={currentStep === stepIndex && isPlaying}
+                      velocity={stepVel}
                       onMouseDown={() => handleStepMouseDown('hihat', stepIndex)}
                       onMouseEnter={() => handleStepMouseEnter('hihat', stepIndex)}
                       onWheel={(e) => handleVelocityWheel(e, 'hihat', stepIndex)}
-                    >
-                      {isActive && <div className="step-velocity">{stepVel}</div>}
-                    </div>
+                    />
                   );
                 })}
               </div>
             ))}
           </div>
         </TrackRow>
+        )}
 
         {/* Clap */}
+        {(proModeParams.trackEnabled?.clap ?? true) && (
         <TrackRow
           label="clap"
           instrument="clap"
@@ -903,7 +1034,7 @@ function App() {
           onMute={() => handleMute('clap')}
           onSolo={() => handleSolo('clap')}
           onVolumeChange={(v: number) => handleVolumeChange('clap', v)}
-          onVolumeWheel={(e: React.WheelEvent) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'clap')}
+
           onReverbSendChange={(v: number) => handleReverbSendChange('clap', v)}
           onDelaySendChange={(v: number) => handleDelaySendChange('clap', v)}
           onEQChange={(band: 'low' | 'mid' | 'high', v: number) => handleEQChange('clap', band, v)}
@@ -911,11 +1042,11 @@ function App() {
             <>
               <div className="param-item">
                 <label>Decay</label>
-                <input type="range" min="0.01" max="0.5" step="0.01" value={params.clap.decay} onChange={e => handleParamChange('clap', 'decay', Number(e.target.value))} onWheel={handleSliderWheel} />
+                <ScrollableSlider min={0.01} max={0.5} step={0.01} value={params.clap.decay} onChange={e => handleParamChange('clap', 'decay', Number(e.target.value))} />
               </div>
               <div className="param-item">
                 <label>Tone</label>
-                <input type="range" min="500" max="4000" step="100" value={params.clap.tone} onChange={e => handleParamChange('clap', 'tone', Number(e.target.value))} onWheel={handleSliderWheel} />
+                <ScrollableSlider min={500} max={4000} step={100} value={params.clap.tone} onChange={e => handleParamChange('clap', 'tone', Number(e.target.value))} />
               </div>
             </>
           }
@@ -928,23 +1059,25 @@ function App() {
                   const isActive = grid.clap[stepIndex];
                   const stepVel = velocities.clap[stepIndex];
                   return (
-                    <div
+                    <Step
                       key={stepIndex}
-                      className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
+                      isActive={isActive}
+                      isCurrent={currentStep === stepIndex && isPlaying}
+                      velocity={stepVel}
                       onMouseDown={() => handleStepMouseDown('clap', stepIndex)}
                       onMouseEnter={() => handleStepMouseEnter('clap', stepIndex)}
                       onWheel={(e) => handleVelocityWheel(e, 'clap', stepIndex)}
-                    >
-                      {isActive && <div className="step-velocity">{stepVel}</div>}
-                    </div>
+                    />
                   );
                 })}
               </div>
             ))}
           </div>
         </TrackRow>
+        )}
 
         {/* Bass (303) */}
+        {(proModeParams.trackEnabled?.bass ?? true) && (
         <TrackRow
           label="303 Bass"
           instrument="bass"
@@ -958,7 +1091,7 @@ function App() {
           onMute={() => handleMute('bass')}
           onSolo={() => handleSolo('bass')}
           onVolumeChange={(v: number) => handleVolumeChange('bass', v)}
-          onVolumeWheel={(e: React.WheelEvent) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'bass')}
+
           onReverbSendChange={(v: number) => handleReverbSendChange('bass', v)}
           onDelaySendChange={(v: number) => handleDelaySendChange('bass', v)}
           onEQChange={(band: 'low' | 'mid' | 'high', v: number) => handleEQChange('bass', band, v)}
@@ -966,19 +1099,19 @@ function App() {
             <>
               <div className="param-item">
                 <label>Cutoff</label>
-                <input type="range" min="50" max="5000" step="10" value={params.bass.cutoff} onChange={e => handleParamChange('bass', 'cutoff', Number(e.target.value))} onWheel={handleSliderWheel} />
+                <ScrollableSlider min={50} max={5000} step={10} value={params.bass.cutoff} onChange={e => handleParamChange('bass', 'cutoff', Number(e.target.value))} />
               </div>
               <div className="param-item">
                 <label>Res</label>
-                <input type="range" min="0" max="20" step="0.1" value={params.bass.resonance} onChange={e => handleParamChange('bass', 'resonance', Number(e.target.value))} onWheel={handleSliderWheel} />
+                <ScrollableSlider min={0} max={20} step={0.1} value={params.bass.resonance} onChange={e => handleParamChange('bass', 'resonance', Number(e.target.value))} />
               </div>
               <div className="param-item">
                 <label>Env Mod</label>
-                <input type="range" min="0" max="8" step="0.1" value={params.bass.envMod} onChange={e => handleParamChange('bass', 'envMod', Number(e.target.value))} onWheel={handleSliderWheel} />
+                <ScrollableSlider min={0} max={8} step={0.1} value={params.bass.envMod} onChange={e => handleParamChange('bass', 'envMod', Number(e.target.value))} />
               </div>
               <div className="param-item">
                 <label>Decay</label>
-                <input type="range" min="0.1" max="2.0" step="0.1" value={params.bass.decay} onChange={e => handleParamChange('bass', 'decay', Number(e.target.value))} onWheel={handleSliderWheel} />
+                <ScrollableSlider min={0.1} max={2.0} step={0.1} value={params.bass.decay} onChange={e => handleParamChange('bass', 'decay', Number(e.target.value))} />
               </div>
             </>
           }
@@ -993,15 +1126,15 @@ function App() {
                   const stepVel = velocities.bass[stepIndex];
                   return (
                     <div key={stepIndex} className="bass-step-wrapper">
-                      <div
-                        className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
+                      <Step
+                        isActive={isActive}
+                        isCurrent={currentStep === stepIndex && isPlaying}
+                        velocity={stepVel}
                         onMouseDown={() => handleStepMouseDown('bass', stepIndex)}
                         onMouseEnter={() => handleStepMouseEnter('bass', stepIndex)}
                         onWheel={(e) => handleVelocityWheel(e, 'bass', stepIndex)}
-                      >
-                        {isActive && <div className="step-velocity">{stepVel}</div>}
-                      </div>
-                      <select 
+                      />
+                      <ScrollableSelect 
                         className="note-select"
                         value={bassPitches[stepIndex]}
                         onChange={(e) => handleBassPitchChange(stepIndex, Number(e.target.value))}
@@ -1011,7 +1144,7 @@ function App() {
                           const midi = 60 - i;
                           return <option key={midi} value={midi}>{midiToNoteName(midi)}</option>;
                         })}
-                      </select>
+                      </ScrollableSelect>
                       <NoteStepper
                         midi={bassPitches[stepIndex]}
                         min={24}
@@ -1026,8 +1159,10 @@ function App() {
             ))}
           </div>
         </TrackRow>
+        )}
 
         {/* Pad Synth */}
+        {(proModeParams.trackEnabled?.pad ?? true) && (
         <TrackRow
           label="Pad"
           instrument="pad"
@@ -1041,7 +1176,7 @@ function App() {
           onMute={() => handleMute('pad')}
           onSolo={() => handleSolo('pad')}
           onVolumeChange={(v: number) => handleVolumeChange('pad', v)}
-          onVolumeWheel={(e: React.WheelEvent) => handleVolumeWheel(e as React.WheelEvent<HTMLInputElement>, 'pad')}
+
           onReverbSendChange={(v: number) => handleReverbSendChange('pad', v)}
           onDelaySendChange={(v: number) => handleDelaySendChange('pad', v)}
           onEQChange={(band: 'low' | 'mid' | 'high', v: number) => handleEQChange('pad', band, v)}
@@ -1049,23 +1184,23 @@ function App() {
             <>
               <div className="param-item">
                 <label>Attack</label>
-                <input type="range" min="0.01" max="1.0" step="0.01" value={params.pad.attack} onChange={e => handleParamChange('pad', 'attack', Number(e.target.value))} onWheel={handleSliderWheel} />
+                <ScrollableSlider min={0.01} max={1.0} step={0.01} value={params.pad.attack} onChange={e => handleParamChange('pad', 'attack', Number(e.target.value))} />
               </div>
               <div className="param-item">
                 <label>Release</label>
-                <input type="range" min="0.1" max="3.0" step="0.1" value={params.pad.release} onChange={e => handleParamChange('pad', 'release', Number(e.target.value))} onWheel={handleSliderWheel} />
+                <ScrollableSlider min={0.1} max={3.0} step={0.1} value={params.pad.release} onChange={e => handleParamChange('pad', 'release', Number(e.target.value))} />
               </div>
               <div className="param-item">
                 <label>Filter</label>
-                <input type="range" min="100" max="8000" step="50" value={params.pad.cutoff} onChange={e => handleParamChange('pad', 'cutoff', Number(e.target.value))} onWheel={handleSliderWheel} />
+                <ScrollableSlider min={100} max={8000} step={50} value={params.pad.cutoff} onChange={e => handleParamChange('pad', 'cutoff', Number(e.target.value))} />
               </div>
               <div className="param-item">
                 <label>Detune</label>
-                <input type="range" min="0" max="30" step="1" value={params.pad.detune} onChange={e => handleParamChange('pad', 'detune', Number(e.target.value))} onWheel={handleSliderWheel} />
+                <ScrollableSlider min={0} max={30} step={1} value={params.pad.detune} onChange={e => handleParamChange('pad', 'detune', Number(e.target.value))} />
               </div>
               <div className="param-item">
                 <label>Distortion</label>
-                <input type="range" min="0" max="1" step="0.01" value={params.pad.distortion} onChange={e => handleParamChange('pad', 'distortion', Number(e.target.value))} onWheel={handleSliderWheel} />
+                <ScrollableSlider min={0} max={1} step={0.01} value={params.pad.distortion} onChange={e => handleParamChange('pad', 'distortion', Number(e.target.value))} />
               </div>
             </>
           }
@@ -1080,16 +1215,16 @@ function App() {
                   const stepVel = velocities.pad[stepIndex];
                   return (
                     <div key={stepIndex} className="pad-step-wrapper">
-                      <div
-                        className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
+                      <Step
+                        isActive={isActive}
+                        isCurrent={currentStep === stepIndex && isPlaying}
+                        velocity={stepVel}
                         onMouseDown={() => handleStepMouseDown('pad', stepIndex)}
                         onMouseEnter={() => handleStepMouseEnter('pad', stepIndex)}
                         onWheel={(e) => handleVelocityWheel(e, 'pad', stepIndex)}
-                      >
-                        {isActive && <div className="step-velocity">{stepVel}</div>}
-                      </div>
+                      />
                       {/* Row 1: Note select */}
-                      <select 
+                      <ScrollableSelect 
                         className="note-select"
                         value={padPitches[stepIndex]}
                         onChange={(e) => handlePadPitchChange(stepIndex, Number(e.target.value))}
@@ -1099,9 +1234,9 @@ function App() {
                           const midi = 72 - i;
                           return <option key={midi} value={midi}>{midiToNoteName(midi)}</option>;
                         })}
-                      </select>
+                      </ScrollableSelect>
                       {/* Row 2: Chord select */}
-                      <select 
+                      <ScrollableSelect 
                         className="voicing-select"
                         value={padVoicings[stepIndex]}
                         onChange={(e) => handlePadVoicingChange(stepIndex, e.target.value)}
@@ -1109,7 +1244,7 @@ function App() {
                         {PAD_VOICING_OPTIONS.map(v => (
                           <option key={v} value={v}>{v}</option>
                         ))}
-                      </select>
+                      </ScrollableSelect>
                       {/* Row 3: +/- buttons */}
                       <NoteStepper
                         midi={padPitches[stepIndex]}
@@ -1125,6 +1260,7 @@ function App() {
             ))}
           </div>
         </TrackRow>
+        )}
 
       </div>
       

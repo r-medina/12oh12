@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { usePreventScroll } from '../hooks/usePreventScroll';
 
 interface KnobProps {
   value: number;
@@ -24,6 +25,10 @@ export const Knob: React.FC<KnobProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const startY = useRef<number>(0);
   const startValue = useRef<number>(0);
+  const knobRef = useRef<HTMLDivElement>(null);
+  
+  // Prevent page scroll when hovering over knob
+  usePreventScroll(knobRef);
   
   // Convert value to angle (-135 to 135 degrees)
   const angle = ((value - min) / (max - min)) * 270 - 135;
@@ -127,6 +132,7 @@ export const Knob: React.FC<KnobProps> = ({
   return (
     <div className="knob-container" style={{ width: size, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
       <div 
+        ref={knobRef}
         className="knob-control" 
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}

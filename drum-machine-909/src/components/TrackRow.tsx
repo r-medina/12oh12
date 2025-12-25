@@ -2,6 +2,7 @@
 import React from 'react';
 import type { Instrument } from '../types';
 import { Knob } from './Knob';
+import { ScrollableSlider } from './ScrollableSlider';
 
 interface TrackRowProps {
   label: string;
@@ -16,7 +17,6 @@ interface TrackRowProps {
   onMute: () => void;
   onSolo: () => void;
   onVolumeChange: (val: number) => void;
-  onVolumeWheel?: (e: React.WheelEvent) => void;
   onReverbSendChange: (val: number) => void;
   onDelaySendChange: (val: number) => void;
   onEQChange: (band: 'low' | 'mid' | 'high', val: number) => void;
@@ -39,7 +39,6 @@ export const TrackRow: React.FC<TrackRowProps> = ({
   onMute,
   onSolo,
   onVolumeChange,
-  onVolumeWheel,
   onReverbSendChange,
   onDelaySendChange,
   onEQChange,
@@ -75,15 +74,13 @@ export const TrackRow: React.FC<TrackRowProps> = ({
       <div className="track-right-section">
         {/* Gain Slider - Full height */}
         <div className="track-gain-column">
-          <input 
-            type="range" 
+          <ScrollableSlider 
             className="vertical-slider gain-slider"
-            min="-60" 
-            max="0" 
-            step="1" 
+            min={-60}
+            max={0}
+            step={1}
             value={volume} 
             onChange={e => onVolumeChange(Number(e.target.value))} 
-            onWheel={onVolumeWheel}
           />
           <label className="gain-label">Vol {volume}</label>
         </div>

@@ -30,12 +30,55 @@ export const createEmptyScene = (name: string): Scene => {
   });
   
   const defaultParams: InstrumentParams = {
-    kick: { tune: 0.05, decay: 0.4 },
+    kick: { tune: 0.05, decay: 0.4, distortion: 0 },
     snare: { tone: 3000, snappy: 0.2 },
     hihat: { decay: 0.2, tone: 3000 },
     clap: { decay: 0.3, tone: 1500 },
     bass: { cutoff: 200, resonance: 2, envMod: 2, decay: 0.2 },
     pad: { attack: 0.3, release: 1.5, cutoff: 2000, detune: 12, distortion: 0 }
+  };
+
+  const defaultProModeParams = {
+    masterVolume: 0,
+    masterCompressor: {
+      bypass: false,
+      threshold: -20,
+      ratio: 2,
+      attack: 0.05,
+      release: 0.2
+    },
+    tapeChain: {
+      bypass: false,
+      compThreshold: -20,
+      compRatio: 2,
+      compAttack: 0.01,
+      compRelease: 0.2,
+      distortion: 0.05,
+      filterCutoff: 18000
+    },
+    reverb: {
+      bypass: false,
+      decay: 4.0,
+      preDelay: 0.05,
+      toneFilter: 600,
+      preFilter: 150,
+      postFilter: 95
+    },
+    delay: {
+      bypass: false,
+      time: "8n.",
+      feedback: 0.4,
+      preFilter: 150,
+      postFilter: 95
+    },
+    trackEnabled: {
+      kick: true,
+      snare: true,
+      hihat: true,
+      clap: true,
+      bass: true,
+      pad: true
+    }
   };
   
   return {
@@ -54,6 +97,7 @@ export const createEmptyScene = (name: string): Scene => {
     solos: emptySolos,
     bpm: 120,
     swing: 0,
+    proModeParams: defaultProModeParams
   };
 };
 
@@ -85,6 +129,15 @@ const migrateScene = (scene: any): Scene => {
     bassPitches: scene.bassPitches || defaultScene.bassPitches,
     padPitches: scene.padPitches || defaultScene.padPitches,
     padVoicings: scene.padVoicings || defaultScene.padVoicings,
+    proModeParams: scene.proModeParams ? {
+      ...defaultScene.proModeParams!,
+      ...scene.proModeParams,
+      masterCompressor: { ...defaultScene.proModeParams!.masterCompressor, ...(scene.proModeParams.masterCompressor || {}) },
+      tapeChain: { ...defaultScene.proModeParams!.tapeChain, ...(scene.proModeParams.tapeChain || {}) },
+      reverb: { ...defaultScene.proModeParams!.reverb, ...(scene.proModeParams.reverb || {}) },
+      delay: { ...defaultScene.proModeParams!.delay, ...(scene.proModeParams.delay || {}) },
+      trackEnabled: { ...defaultScene.proModeParams!.trackEnabled, ...(scene.proModeParams.trackEnabled || scene.proModeParams.trackVisibility || {}) }
+    } : defaultScene.proModeParams
   };
 };
 

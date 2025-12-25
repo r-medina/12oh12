@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import { usePreventScroll } from '../hooks/usePreventScroll';
 
 interface NoteStepperProps {
   midi: number;
@@ -26,6 +27,11 @@ export const NoteStepper: React.FC<NoteStepperProps> = ({
   onWheel,
   buttonsOnly = false
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Prevent page scroll when hovering over note stepper
+  usePreventScroll(containerRef);
+
   const handleDecrement = () => {
     if (midi > min) {
       onChange(midi - 1);
@@ -39,7 +45,7 @@ export const NoteStepper: React.FC<NoteStepperProps> = ({
   };
 
   return (
-    <div className="note-stepper" onWheel={onWheel}>
+    <div className="note-stepper" ref={containerRef} onWheel={onWheel}>
       <button 
         className="note-stepper-btn" 
         onClick={handleDecrement}
