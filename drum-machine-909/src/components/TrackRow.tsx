@@ -49,28 +49,31 @@ export const TrackRow: React.FC<TrackRowProps> = ({
 }) => {
   return (
     <div className={`track-container ${className}`}>
-      {/* Header Row: Label, M/S, Params */}
-      <div className="track-header">
-        <div className="track-identity">
-          <div className="track-label">{label}</div>
-          <div className="mute-solo-group">
-            <button className={`ms-btn ${mute ? 'active' : ''}`} onClick={onMute}>M</button>
-            <button className={`ms-btn ${solo ? 'active' : ''}`} onClick={onSolo}>S</button>
+      {/* Left Section: Header + Steps (stacked vertically) */}
+      <div className="track-left-section">
+        {/* Header Row: Label, M/S, Params */}
+        <div className="track-header">
+          <div className="track-identity">
+            <div className="track-label">{label}</div>
+            <div className="mute-solo-group">
+              <button className={`ms-btn ${mute ? 'active' : ''}`} onClick={onMute}>M</button>
+              <button className={`ms-btn ${solo ? 'active' : ''}`} onClick={onSolo}>S</button>
+            </div>
+          </div>
+          <div className="track-params">
+            {extraControls}
           </div>
         </div>
-        <div className="track-params">
-          {extraControls}
-        </div>
-      </div>
 
-      {/* Main Row: Pads + Gain + EQ/Sends */}
-      <div className="track-main-row">
         {/* Steps Grid */}
         <div className="track-grid-row">
           {children}
         </div>
+      </div>
 
-        {/* Gain Slider - Full height to right of pads */}
+      {/* Right Section: Gain + EQ/Sends (full height) */}
+      <div className="track-right-section">
+        {/* Gain Slider - Full height */}
         <div className="track-gain-column">
           <input 
             type="range" 

@@ -284,10 +284,10 @@ padDistortion.connect(padFilter);
 
 
 // Trigger all pad voices (unison)
-const triggerPadVoices = (notes: string[], duration: string, time: number) => {
-  padVoice1.triggerAttackRelease(notes, duration, time);
-  padVoice2.triggerAttackRelease(notes, duration, time);
-  padVoice3.triggerAttackRelease(notes, duration, time);
+const triggerPadVoices = (notes: string[], duration: string, time: number, velocity: number) => {
+  padVoice1.triggerAttackRelease(notes, duration, time, velocity);
+  padVoice2.triggerAttackRelease(notes, duration, time, velocity);
+  padVoice3.triggerAttackRelease(notes, duration, time, velocity);
 };
 
 // Keep track of per-step bass pitches (MIDI note numbers, default C2=36)
@@ -296,6 +296,13 @@ let currentBassPitches: number[] = new Array(16).fill(36);
 // Keep track of per-step pad pitches (MIDI note numbers, default C3=48) and voicings
 let currentPadPitches: number[] = new Array(16).fill(48);
 let currentPadVoicings: PadVoicing[] = new Array(16).fill('single');
+
+// Keep track of per-step velocities (0-127)
+let currentVelocities: Record<Instrument, number[]> = {
+  kick: new Array(16).fill(100), snare: new Array(16).fill(100), hihat: new Array(16).fill(100), clap: new Array(16).fill(100),
+  kick909: [], snare909: [], hihat909: [], clap909: [],
+  bass: new Array(16).fill(100), pad: new Array(16).fill(100)
+};
 
 // -- Sequencer State --
 // We keep a mutable reference to the grid so the repeat loop can read it without restarts
@@ -330,24 +337,25 @@ const loop = new Tone.Sequence(
     };
 
     // 1. Trigger Sounds
-    if (shouldPlay('kick') && currentGrid.kick[step]) kick.triggerAttackRelease('C1', '8n', time);
-    if (shouldPlay('snare') && currentGrid.snare[step]) snare.triggerAttackRelease('8n', time);
-    // Note: MetalSynth.triggerAttackRelease needs velocity as 3rd arg in some versions or just time. 
-    // Typescript definition says (note, duration, time, velocity). 
-    // We stick to the existing valid call: 'C6', '32n', time, 0.6
-    if (shouldPlay('hihat') && currentGrid.hihat[step]) hihat.triggerAttackRelease('C6', '8n', time, 0.6);
-    if (shouldPlay('clap') && currentGrid.clap[step]) clap.triggerAttackRelease('8n', time);
+    // Velocity: 0-127 -> 0.0-1.0
+    const getVel = (inst: Instrument) => (currentVelocities[inst]?.[step] ?? 100) / 127;
+
+    if (shouldPlay('kick') && currentGrid.kick[step]) kick.triggerAttackRelease('C1', '8n', time, getVel('kick'));
+    if (shouldPlay('snare') && currentGrid.snare[step]) snare.triggerAttackRelease('8n', time, getVel('snare'));
+    // Hihat already used 0.6 fixed, now use dynamic
+    if (shouldPlay('hihat') && currentGrid.hihat[step]) hihat.triggerAttackRelease('C6', '8n', time, getVel('hihat'));
+    if (shouldPlay('clap') && currentGrid.clap[step]) clap.triggerAttackRelease('8n', time, getVel('clap'));
     
     // Trigger Bass
     if (shouldPlay('bass') && currentGrid.bass[step]) {
       const note = Tone.Frequency(currentBassPitches[step], "midi").toNote();
-      bass.triggerAttackRelease(note, '16n', time);
+      bass.triggerAttackRelease(note, '16n', time, getVel('bass'));
     }
 
     // Trigger Pad
     if (shouldPlay('pad') && currentGrid.pad[step]) {
       const chordNotes = getChordNotes(currentPadPitches[step], currentPadVoicings[step]);
-      triggerPadVoices(chordNotes, '8n', time);
+      triggerPadVoices(chordNotes, '8n', time, getVel('pad'));
     }
 
     // 2. Update UI
@@ -375,6 +383,10 @@ export const AudioEngine = {
 
   updatePadPitches: (pitches: number[]) => {
     currentPadPitches = pitches;
+  },
+
+  updateVelocities: (velocities: Record<Instrument, number[]>) => {
+    currentVelocities = velocities;
   },
 
   updatePadVoicings: (voicings: string[]) => {

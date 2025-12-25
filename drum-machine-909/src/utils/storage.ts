@@ -14,6 +14,7 @@ export const createEmptyScene = (name: string): Scene => {
   const emptyReverbSends: Record<Instrument, number> = {} as Record<Instrument, number>;
   const emptyDelaySends: Record<Instrument, number> = {} as Record<Instrument, number>;
   const emptyEqGains: Record<Instrument, { low: number; mid: number; high: number }> = {} as Record<Instrument, { low: number; mid: number; high: number }>;
+  const emptyVelocities: Record<Instrument, number[]> = {} as Record<Instrument, number[]>;
   const emptyMutes: Record<Instrument, boolean> = {} as Record<Instrument, boolean>;
   const emptySolos: Record<Instrument, boolean> = {} as Record<Instrument, boolean>;
   
@@ -23,6 +24,7 @@ export const createEmptyScene = (name: string): Scene => {
     emptyReverbSends[inst] = -60;
     emptyDelaySends[inst] = -60;
     emptyEqGains[inst] = { low: 0, mid: 0, high: 0 };
+    emptyVelocities[inst] = new Array(16).fill(100); // Default velocity 100/127
     emptyMutes[inst] = false;
     emptySolos[inst] = false;
   });
@@ -46,6 +48,7 @@ export const createEmptyScene = (name: string): Scene => {
     reverbSends: emptyReverbSends,
     delaySends: emptyDelaySends,
     eqGains: emptyEqGains,
+    velocities: emptyVelocities,
     params: defaultParams,
     mutes: emptyMutes,
     solos: emptySolos,
@@ -75,6 +78,7 @@ const migrateScene = (scene: any): Scene => {
     reverbSends: { ...defaultScene.reverbSends, ...(scene.reverbSends || {}) },
     delaySends: { ...defaultScene.delaySends, ...(scene.delaySends || {}) },
     eqGains: { ...defaultScene.eqGains, ...(scene.eqGains || {}) },
+    velocities: { ...defaultScene.velocities, ...(scene.velocities || {}) },
     params: { ...defaultScene.params, ...(scene.params || {}) },
     mutes: { ...defaultScene.mutes, ...(scene.mutes || {}) },
     solos: { ...defaultScene.solos, ...(scene.solos || {}) },

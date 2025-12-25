@@ -51,6 +51,7 @@ export interface Scene {
   reverbSends: Record<Instrument, number>;
   delaySends: Record<Instrument, number>;
   eqGains: Record<Instrument, { low: number; mid: number; high: number }>;
+  velocities: Record<Instrument, number[]>;
   params: InstrumentParams;
   mutes: Record<Instrument, boolean>;
   solos: Record<Instrument, boolean>;

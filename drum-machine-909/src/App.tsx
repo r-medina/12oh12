@@ -77,6 +77,13 @@ function App() {
   const [reverbSends, setReverbSends] = useState(INITIAL_REVERB_SENDS);
   const [delaySends, setDelaySends] = useState(INITIAL_DELAY_SENDS);
   const [eqGains, setEqGains] = useState(INITIAL_EQ_GAINS);
+  const [velocities, setVelocities] = useState<Record<Instrument, number[]>>(() => {
+    // Initialize velocities to 100/127 for all
+    const vels: any = {};
+    const insts: Instrument[] = ['kick', 'snare', 'hihat', 'clap', 'bass', 'pad', 'kick909', 'snare909', 'hihat909', 'clap909'];
+    insts.forEach(i => vels[i] = new Array(16).fill(100));
+    return vels;
+  });
   const [params, setParams] = useState<InstrumentParams>(INITIAL_PARAMS);
 
   // Scene management
@@ -165,6 +172,7 @@ function App() {
           AudioEngine.updateBassPitches(bassPitches);
           AudioEngine.updatePadPitches(padPitches);
           AudioEngine.updatePadVoicings(padVoicings);
+          AudioEngine.updateVelocities(velocities);
 
           AudioEngine.onStep((step) => {
             setCurrentStep(step);
@@ -313,6 +321,27 @@ function App() {
     AudioEngine.setBpm(newBpm);
   };
 
+  const handleVelocityWheel = (e: React.WheelEvent, inst: Instrument, step: number) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!grid[inst][step]) return; // Only edit velocity if step is active
+
+    // Scroll UP (negative deltaY) => Increase Value
+    const d = e.deltaY < 0 ? 1 : -1;
+    const amount = e.shiftKey ? 10 : 1;
+    
+    const current = velocities[inst][step] || 100;
+    let next = Math.min(127, Math.max(1, current + (d * amount)));
+    
+    if (next === current) return;
+    
+    const newRow = [...velocities[inst]];
+    newRow[step] = next;
+    const newVelocities = { ...velocities, [inst]: newRow };
+    setVelocities(newVelocities);
+    AudioEngine.updateVelocities(newVelocities);
+  };
+
   /* Per-step Bass Pitches (MIDI notes) */
   const [bassPitches, setBassPitches] = useState<number[]>(new Array(16).fill(36)); // Default C2 (36)
 
@@ -385,6 +414,7 @@ function App() {
       padPitches,
       padVoicings,
       volumes,
+      velocities,
       reverbSends,
       delaySends,
 
@@ -400,7 +430,7 @@ function App() {
     newScenes[activeSceneIndex] = currentScene;
     setScenes(newScenes);
     saveScenes(newScenes);
-  }, [grid, bassPitches, padPitches, padVoicings, volumes, reverbSends, delaySends, eqGains, params, mutes, solos, bpm, swing]);
+  }, [grid, bassPitches, padPitches, padVoicings, volumes, velocities, reverbSends, delaySends, eqGains, params, mutes, solos, bpm, swing]);
 
   // Scene Management Handlers
   const loadSceneState = useCallback((scene: Scene) => {
@@ -419,6 +449,14 @@ function App() {
     setBpm(scene.bpm);
     setSwing(scene.swing);
 
+    const safeVelocities = scene.velocities || (() => {
+       const v: any = {};
+       const insts: Instrument[] = ['kick', 'snare', 'hihat', 'clap', 'bass', 'pad', 'kick909', 'snare909', 'hihat909', 'clap909'];
+       insts.forEach(i => v[i] = new Array(16).fill(100));
+       return v;
+    })();
+    setVelocities(safeVelocities);
+
     // Sync to audio engine
     AudioEngine.setBpm(scene.bpm);
     AudioEngine.updateGrid(scene.grid);
@@ -426,6 +464,7 @@ function App() {
     AudioEngine.updatePadPitches(scene.padPitches);
     AudioEngine.updatePadVoicings(scene.padVoicings);
     AudioEngine.setSwing(scene.swing);
+    AudioEngine.updateVelocities(safeVelocities);
 
     (Object.keys(scene.mutes) as Instrument[]).forEach(inst => {
       AudioEngine.setMute(inst, scene.mutes[inst]);
@@ -725,13 +764,17 @@ function App() {
                 {[0, 1, 2, 3].map(stepInGroup => {
                   const stepIndex = groupIdx * 4 + stepInGroup;
                   const isActive = grid.kick[stepIndex];
+                  const stepVel = velocities.kick[stepIndex];
                   return (
                     <div
                       key={stepIndex}
                       className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
                       onMouseDown={() => handleStepMouseDown('kick', stepIndex)}
                       onMouseEnter={() => handleStepMouseEnter('kick', stepIndex)}
-                    />
+                      onWheel={(e) => handleVelocityWheel(e, 'kick', stepIndex)}
+                    >
+                      {isActive && <div className="step-velocity">{stepVel}</div>}
+                    </div>
                   );
                 })}
               </div>
@@ -775,13 +818,17 @@ function App() {
                 {[0, 1, 2, 3].map(stepInGroup => {
                   const stepIndex = groupIdx * 4 + stepInGroup;
                   const isActive = grid.snare[stepIndex];
+                  const stepVel = velocities.snare[stepIndex];
                   return (
                     <div
                       key={stepIndex}
                       className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
                       onMouseDown={() => handleStepMouseDown('snare', stepIndex)}
                       onMouseEnter={() => handleStepMouseEnter('snare', stepIndex)}
-                    />
+                      onWheel={(e) => handleVelocityWheel(e, 'snare', stepIndex)}
+                    >
+                      {isActive && <div className="step-velocity">{stepVel}</div>}
+                    </div>
                   );
                 })}
               </div>
@@ -825,13 +872,17 @@ function App() {
                 {[0, 1, 2, 3].map(stepInGroup => {
                   const stepIndex = groupIdx * 4 + stepInGroup;
                   const isActive = grid.hihat[stepIndex];
+                  const stepVel = velocities.hihat[stepIndex];
                   return (
                     <div
                       key={stepIndex}
                       className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
                       onMouseDown={() => handleStepMouseDown('hihat', stepIndex)}
                       onMouseEnter={() => handleStepMouseEnter('hihat', stepIndex)}
-                    />
+                      onWheel={(e) => handleVelocityWheel(e, 'hihat', stepIndex)}
+                    >
+                      {isActive && <div className="step-velocity">{stepVel}</div>}
+                    </div>
                   );
                 })}
               </div>
@@ -875,13 +926,17 @@ function App() {
                 {[0, 1, 2, 3].map(stepInGroup => {
                   const stepIndex = groupIdx * 4 + stepInGroup;
                   const isActive = grid.clap[stepIndex];
+                  const stepVel = velocities.clap[stepIndex];
                   return (
                     <div
                       key={stepIndex}
                       className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
                       onMouseDown={() => handleStepMouseDown('clap', stepIndex)}
                       onMouseEnter={() => handleStepMouseEnter('clap', stepIndex)}
-                    />
+                      onWheel={(e) => handleVelocityWheel(e, 'clap', stepIndex)}
+                    >
+                      {isActive && <div className="step-velocity">{stepVel}</div>}
+                    </div>
                   );
                 })}
               </div>
@@ -935,13 +990,17 @@ function App() {
                 {[0, 1, 2, 3].map(stepInGroup => {
                   const stepIndex = groupIdx * 4 + stepInGroup;
                   const isActive = grid.bass[stepIndex];
+                  const stepVel = velocities.bass[stepIndex];
                   return (
                     <div key={stepIndex} className="bass-step-wrapper">
                       <div
                         className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
                         onMouseDown={() => handleStepMouseDown('bass', stepIndex)}
                         onMouseEnter={() => handleStepMouseEnter('bass', stepIndex)}
-                      />
+                        onWheel={(e) => handleVelocityWheel(e, 'bass', stepIndex)}
+                      >
+                        {isActive && <div className="step-velocity">{stepVel}</div>}
+                      </div>
                       <select 
                         className="note-select"
                         value={bassPitches[stepIndex]}
@@ -1018,13 +1077,17 @@ function App() {
                 {[0, 1, 2, 3].map(stepInGroup => {
                   const stepIndex = groupIdx * 4 + stepInGroup;
                   const isActive = grid.pad[stepIndex];
+                  const stepVel = velocities.pad[stepIndex];
                   return (
                     <div key={stepIndex} className="pad-step-wrapper">
                       <div
                         className={`step ${isActive ? 'active' : ''} ${currentStep === stepIndex && isPlaying ? 'current' : ''}`}
                         onMouseDown={() => handleStepMouseDown('pad', stepIndex)}
                         onMouseEnter={() => handleStepMouseEnter('pad', stepIndex)}
-                      />
+                        onWheel={(e) => handleVelocityWheel(e, 'pad', stepIndex)}
+                      >
+                        {isActive && <div className="step-velocity">{stepVel}</div>}
+                      </div>
                       {/* Row 1: Note select */}
                       <select 
                         className="note-select"
