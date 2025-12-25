@@ -70,7 +70,7 @@ export function Visualizer() {
             if (r < litPixels) {
               // Active pixel
               ctx.fillStyle = accentColor;
-              ctx.shadowBlur = 4;
+              ctx.shadowBlur = 1;
               ctx.shadowColor = accentColor;
             } else {
               // Inactive pixel (matrix background)

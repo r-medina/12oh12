@@ -290,7 +290,7 @@ function App() {
           <div className="track">
             <div className="track-main">
               <div className="knob-row">
-                <label>Vol: {volumes.kick}dB</label>
+                <label className="vol-label">Vol: {volumes.kick}dB</label>
                 <input type="range" min="-60" max="0" step="1" value={volumes.kick} onChange={e => handleVolumeChange('kick', Number(e.target.value))} onWheel={(e) => handleVolumeWheel(e, 'kick')} />
                 <label>Tune</label>
                 <input type="range" min="0.01" max="0.3" step="0.01" defaultValue="0.05" onChange={e => AudioEngine.setKickPitchDecay(Number(e.target.value))} onWheel={handleSliderWheel} />
@@ -331,7 +331,7 @@ function App() {
           <div className="track">
             <div className="track-main">
               <div className="knob-row">
-                <label>Vol: {volumes.snare}dB</label>
+                <label className="vol-label">Vol: {volumes.snare}dB</label>
                 <input type="range" min="-60" max="0" step="1" value={volumes.snare} onChange={e => handleVolumeChange('snare', Number(e.target.value))} onWheel={(e) => handleVolumeWheel(e, 'snare')} />
                 <label>Tone</label>
                 <input type="range" min="400" max="6000" step="100" defaultValue="3000" onChange={e => AudioEngine.setSnareTone(Number(e.target.value))} onWheel={handleSliderWheel} />
@@ -372,7 +372,7 @@ function App() {
           <div className="track">
             <div className="track-main">
               <div className="knob-row">
-                <label>Vol: {volumes.hihat}dB</label>
+                <label className="vol-label">Vol: {volumes.hihat}dB</label>
                 <input type="range" min="-60" max="0" step="1" value={volumes.hihat} onChange={e => handleVolumeChange('hihat', Number(e.target.value))} onWheel={(e) => handleVolumeWheel(e, 'hihat')} />
                 <label>Decay</label>
                 <input type="range" min="0.01" max="0.5" step="0.01" defaultValue="0.1" onChange={e => AudioEngine.setHiHatDecay(Number(e.target.value))} onWheel={handleSliderWheel} />
@@ -411,7 +411,7 @@ function App() {
           <div className="track">
             <div className="track-main">
               <div className="knob-row">
-                <label>Vol: {volumes.clap}dB</label>
+                <label className="vol-label">Vol: {volumes.clap}dB</label>
                 <input type="range" min="-60" max="0" step="1" value={volumes.clap} onChange={e => handleVolumeChange('clap', Number(e.target.value))} onWheel={(e) => handleVolumeWheel(e, 'clap')} />
                 <label>Decay</label>
                 <input type="range" min="0.01" max="0.5" step="0.01" defaultValue="0.3" onChange={e => AudioEngine.setClapDecay(Number(e.target.value))} onWheel={handleSliderWheel} />
@@ -450,7 +450,7 @@ function App() {
           <div className="track">
             <div className="track-main">
               <div className="knob-row">
-                <label>Vol: {volumes.bass}dB</label>
+                <label className="vol-label">Vol: {volumes.bass}dB</label>
                 <input type="range" min="-60" max="0" step="1" value={volumes.bass} onChange={e => handleVolumeChange('bass', Number(e.target.value))} onWheel={(e) => handleVolumeWheel(e, 'bass')} />
                 <label>Cutoff</label>
                 <input type="range" min="50" max="5000" step="10" defaultValue="200" onChange={e => AudioEngine.setBassCutoff(Number(e.target.value))} onWheel={handleSliderWheel} />
