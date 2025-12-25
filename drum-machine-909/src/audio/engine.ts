@@ -3,7 +3,7 @@ import type { Instrument } from '../types';
 import { TapeChain } from './tape';
 
 // -- Analyser & Master --
-const analyser = new Tone.Analyser('fft', 256);
+const analyser = new Tone.Analyser('fft', 128);
 const masterVol = new Tone.Volume(0);
 const tapeChain = new TapeChain();
 const meter = new Tone.Meter();

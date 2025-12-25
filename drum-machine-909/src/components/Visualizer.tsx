@@ -3,9 +3,10 @@ import { AudioEngine } from '../audio/engine';
 
 interface VisualizerProps {
   theme: 'day' | 'night';
+  isPlaying: boolean;
 }
 
-export function Visualizer({ theme }: VisualizerProps) {
+export function Visualizer({ theme, isPlaying }: VisualizerProps) {
   const [on, setOn] = useState(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -68,7 +69,7 @@ export function Visualizer({ theme }: VisualizerProps) {
 
     let animationId: number;
     let lastDrawTime = 0;
-    const targetFps = 10;
+    const targetFps = 16;
     const frameInterval = 1000 / targetFps;
 
     // Cache computed styles outside draw loop for performance
@@ -105,8 +106,8 @@ export function Visualizer({ theme }: VisualizerProps) {
       ctx.fillStyle = bgPrimary;
       ctx.fillRect(0, 0, width, height);
 
-      // Draw Frequency Bars (ONLY IF ON)
-      if (on) {
+      // Draw Frequency Bars (ONLY IF ON AND PLAYING)
+      if (on && isPlaying) {
         const values = AudioEngine.getFrequencyData();
         
         if (values instanceof Float32Array || values instanceof Uint8Array) {
@@ -188,7 +189,7 @@ export function Visualizer({ theme }: VisualizerProps) {
     animationId = requestAnimationFrame(draw);
 
     return () => cancelAnimationFrame(animationId);
-  }, [on, theme]);
+  }, [on, theme, isPlaying]);
 
   return (
     <div className="visualizer-container" style={{ position: 'relative' }}>

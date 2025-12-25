@@ -8,3 +8,24 @@ export interface DrumState {
   currentStep: number;
   grid: Record<Instrument, boolean[]>;
 }
+
+export interface Scene {
+  name: string;
+  grid: Record<Instrument, boolean[]>;
+  bassPitches: number[];
+  padPitches: number[];
+  padVoicings: string[];
+  volumes: Record<Instrument, number>;
+  reverbSends: Record<Instrument, number>;
+  delaySends: Record<Instrument, number>;
+  eqGains: Record<Instrument, { low: number; mid: number; high: number }>;
+  mutes: Record<Instrument, boolean>;
+  solos: Record<Instrument, boolean>;
+  bpm: number;
+  swing: number;
+}
+
+export interface SceneBank {
+  scenes: Scene[];
+  activeSceneIndex: number;
+}

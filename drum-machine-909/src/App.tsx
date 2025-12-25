@@ -1,8 +1,12 @@
-import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import { AudioEngine } from './audio/engine';
 import { Visualizer } from './components/Visualizer';
 import { Knob } from './components/Knob';
-import type { Instrument } from './types';
+import { SceneSelector } from './components/SceneSelector';
+import { ShortcutHelp } from './components/ShortcutHelp';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { loadScenes, saveScenes, createEmptyScene, downloadScene, importScene } from './utils/storage';
+import type { Instrument, Scene } from './types';
 
 // Initial Pattern: Basic House Beat
 const INITIAL_GRID: Record<Instrument, boolean[]> = {
@@ -63,6 +67,12 @@ function App() {
   const [reverbSends, setReverbSends] = useState(INITIAL_REVERB_SENDS);
   const [delaySends, setDelaySends] = useState(INITIAL_DELAY_SENDS);
   const [eqGains, setEqGains] = useState(INITIAL_EQ_GAINS);
+
+  // Scene management
+  const [scenes, setScenes] = useState<Scene[]>(() => loadScenes());
+  const [activeSceneIndex, setActiveSceneIndex] = useState(0);
+  const [copiedScene, setCopiedScene] = useState<Scene | null>(null);
+  const [showShortcutHelp, setShowShortcutHelp] = useState(false);
 
   // Theme effect
   useLayoutEffect(() => {
@@ -298,6 +308,169 @@ function App() {
   const [padPitches, setPadPitches] = useState<number[]>(new Array(16).fill(48)); // Default C3 (48)
   const [padVoicings, setPadVoicings] = useState<string[]>(new Array(16).fill('single'));
 
+  // Save current state to active scene whenever it changes
+  useEffect(() => {
+    const currentScene: Scene = {
+      name: scenes[activeSceneIndex].name,
+      grid,
+      bassPitches,
+      padPitches,
+      padVoicings,
+      volumes,
+      reverbSends,
+      delaySends,
+      eqGains,
+      mutes,
+      solos,
+      bpm,
+      swing,
+    };
+
+    const newScenes = [...scenes];
+    newScenes[activeSceneIndex] = currentScene;
+    setScenes(newScenes);
+    saveScenes(newScenes);
+  }, [grid, bassPitches, padPitches, padVoicings, volumes, reverbSends, delaySends, eqGains, mutes, solos, bpm, swing]);
+
+  // Scene Management Handlers
+  const loadSceneState = useCallback((scene: Scene) => {
+    setGrid(scene.grid);
+    setBassPitches(scene.bassPitches);
+    setPadPitches(scene.padPitches);
+    setPadVoicings(scene.padVoicings);
+    setVolumes(scene.volumes);
+    setReverbSends(scene.reverbSends);
+    setDelaySends(scene.delaySends);
+    setEqGains(scene.eqGains);
+    setMutes(scene.mutes);
+    setSolos(scene.solos);
+    setBpm(scene.bpm);
+    setSwing(scene.swing);
+
+    // Sync to audio engine
+    AudioEngine.setBpm(scene.bpm);
+    AudioEngine.updateGrid(scene.grid);
+    AudioEngine.updateBassPitches(scene.bassPitches);
+    AudioEngine.updatePadPitches(scene.padPitches);
+    AudioEngine.updatePadVoicings(scene.padVoicings);
+    AudioEngine.setSwing(scene.swing);
+
+    (Object.keys(scene.mutes) as Instrument[]).forEach(inst => {
+      AudioEngine.setMute(inst, scene.mutes[inst]);
+      AudioEngine.setSolo(inst, scene.solos[inst]);
+      AudioEngine.setVolume(inst, scene.volumes[inst]);
+      AudioEngine.setReverbSend(inst, scene.reverbSends[inst]);
+      AudioEngine.setDelaySend(inst, scene.delaySends[inst]);
+
+      const eq = scene.eqGains[inst];
+      AudioEngine.setChannelEQ(inst, 'low', eq.low);
+      AudioEngine.setChannelEQ(inst, 'mid', eq.mid);
+      AudioEngine.setChannelEQ(inst, 'high', eq.high);
+    });
+  }, []);
+
+  const handleSceneSelect = useCallback((index: number) => {
+    if (index === activeSceneIndex) return;
+
+    loadSceneState(scenes[index]);
+    setActiveSceneIndex(index);
+  }, [activeSceneIndex, scenes, loadSceneState]);
+
+  const handleSceneCopy = useCallback((index: number) => {
+    setCopiedScene(scenes[index]);
+    console.log(`Scene ${String.fromCharCode(65 + index)} copied`);
+  }, [scenes]);
+
+  const handleScenePaste = useCallback((index: number) => {
+    if (!copiedScene) return;
+
+    const newScene = { ...copiedScene, name: `Scene ${String.fromCharCode(65 + index)}` };
+    const newScenes = [...scenes];
+    newScenes[index] = newScene;
+    setScenes(newScenes);
+    saveScenes(newScenes);
+
+    // If pasting to active scene, load it
+    if (index === activeSceneIndex) {
+      loadSceneState(newScene);
+    }
+  }, [copiedScene, scenes, activeSceneIndex, loadSceneState]);
+
+  const handleSceneClear = useCallback((index: number) => {
+    const newScene = createEmptyScene(`Scene ${String.fromCharCode(65 + index)}`);
+    const newScenes = [...scenes];
+    newScenes[index] = newScene;
+    setScenes(newScenes);
+    saveScenes(newScenes);
+
+    // If clearing active scene, load it
+    if (index === activeSceneIndex) {
+      loadSceneState(newScene);
+    }
+  }, [scenes, activeSceneIndex, loadSceneState]);
+
+  const handleExport = useCallback(() => {
+    downloadScene(scenes[activeSceneIndex]);
+  }, [scenes, activeSceneIndex]);
+
+  const handleImport = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const json = event.target?.result as string;
+        const scene = importScene(json);
+        if (scene) {
+          const newScenes = [...scenes];
+          newScenes[activeSceneIndex] = scene;
+          setScenes(newScenes);
+          saveScenes(newScenes);
+          loadSceneState(scene);
+        } else {
+          alert('Failed to import scene. Invalid file format.');
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  }, [scenes, activeSceneIndex, loadSceneState]);
+
+  // Keyboard shortcuts
+  const instruments: Instrument[] = ['kick', 'snare', 'hihat', 'clap', 'bass', 'pad'];
+
+  useKeyboardShortcuts({
+    onPlayPause: handleStart,
+    onBpmIncrease: () => {
+      const newBpm = Math.min(175, bpm + 5);
+      setBpm(newBpm);
+      AudioEngine.setBpm(newBpm);
+    },
+    onBpmDecrease: () => {
+      const newBpm = Math.max(65, bpm - 5);
+      setBpm(newBpm);
+      AudioEngine.setBpm(newBpm);
+    },
+    onSceneSelect: handleSceneSelect,
+    onSolo: (index) => {
+      if (index < instruments.length) {
+        handleSolo(instruments[index]);
+      }
+    },
+    onMute: (index) => {
+      if (index < instruments.length) {
+        handleMute(instruments[index]);
+      }
+    },
+    onSave: () => saveScenes(scenes),
+    onExport: handleExport,
+    onHelp: () => setShowShortcutHelp(true),
+  }, true);
+
   const PAD_VOICING_OPTIONS = ['single', 'octave', 'fifth', 'major', 'minor', 'sus2', 'sus4'];
 
   const handlePadPitchChange = (stepIndex: number, val: number) => {
@@ -326,10 +499,15 @@ function App() {
     <div className="container">
       <div className="header">
         <h1>12 oh 12</h1>
-        <div className="theme-toggle" onClick={toggleTheme}>
-          <span className="theme-toggle-label">{theme === 'night' ? 'night' : 'day'}</span>
-          <div className="theme-toggle-track">
-            <div className="theme-toggle-thumb" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button className="help-btn" onClick={() => setShowShortcutHelp(true)} title="Keyboard Shortcuts (?)">
+            ?
+          </button>
+          <div className="theme-toggle" onClick={toggleTheme}>
+            <span className="theme-toggle-label">{theme === 'night' ? 'night' : 'day'}</span>
+            <div className="theme-toggle-track">
+              <div className="theme-toggle-thumb" />
+            </div>
           </div>
         </div>
       </div>
@@ -344,6 +522,15 @@ function App() {
         >
           {isPlaying ? 'STOP' : 'START'}
         </button>
+
+        <div className="file-controls">
+          <button className="file-btn" onClick={handleExport} title="Export Scene (Cmd+E)">
+            Export
+          </button>
+          <button className="file-btn" onClick={handleImport}>
+            Import
+          </button>
+        </div>
         
         <div className="control-group">
           <label>BPM: {bpm}</label>
@@ -370,6 +557,15 @@ function App() {
           />
         </div>
       </div>
+
+      <SceneSelector
+        scenes={scenes}
+        activeIndex={activeSceneIndex}
+        onSceneSelect={handleSceneSelect}
+        onSceneCopy={handleSceneCopy}
+        onScenePaste={handleScenePaste}
+        onSceneClear={handleSceneClear}
+      />
 
       <div className="sequencer-grid">
         {/* Kick */}
@@ -749,7 +945,9 @@ function App() {
 
       </div>
       
-      <Visualizer theme={theme} />
+      <Visualizer theme={theme} isPlaying={isPlaying} />
+
+      <ShortcutHelp isOpen={showShortcutHelp} onClose={() => setShowShortcutHelp(false)} />
     </div>
   );
 }
