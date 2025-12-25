@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react
 import { AudioEngine } from './audio/engine';
 import { Visualizer } from './components/Visualizer';
 import { TrackRow } from './components/TrackRow';
+import { NoteStepper, midiToNoteName } from './components/NoteStepper';
 import { SceneSelector } from './components/SceneSelector';
 import { ShortcutHelp } from './components/ShortcutHelp';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -663,7 +664,8 @@ function App() {
         <div className="control-group">
           <label>Swing: {Math.round(swing * 100)}%</label>
           <input 
-            type="range" 
+            type="range"
+            className="swing-slider"
             min="0" 
             max="0.5" 
             step="0.02"
@@ -946,19 +948,18 @@ function App() {
                         onChange={(e) => handleBassPitchChange(stepIndex, Number(e.target.value))}
                         onWheel={(e) => handleNoteWheel(e, stepIndex)}
                       >
-                        {/* C4 (60) to C1 (24) */}
                         {Array.from({ length: 37 }, (_, i) => {
                           const midi = 60 - i;
-                          const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-                          const octave = Math.floor(midi / 12) - 1;
-                          const noteName = noteNames[midi % 12];
-                          return (
-                            <option key={midi} value={midi}>
-                              {noteName}{octave}
-                            </option>
-                          );
+                          return <option key={midi} value={midi}>{midiToNoteName(midi)}</option>;
                         })}
                       </select>
+                      <NoteStepper
+                        midi={bassPitches[stepIndex]}
+                        min={24}
+                        max={60}
+                        onChange={(val) => handleBassPitchChange(stepIndex, val)}
+                        buttonsOnly
+                      />
                     </div>
                   );
                 })}
@@ -1024,25 +1025,19 @@ function App() {
                         onMouseDown={() => handleStepMouseDown('pad', stepIndex)}
                         onMouseEnter={() => handleStepMouseEnter('pad', stepIndex)}
                       />
+                      {/* Row 1: Note select */}
                       <select 
                         className="note-select"
                         value={padPitches[stepIndex]}
                         onChange={(e) => handlePadPitchChange(stepIndex, Number(e.target.value))}
                         onWheel={(e) => handlePadNoteWheel(e, stepIndex)}
                       >
-                        {/* C5 (72) to C2 (36) */}
                         {Array.from({ length: 37 }, (_, i) => {
                           const midi = 72 - i;
-                          const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-                          const octave = Math.floor(midi / 12) - 1;
-                          const noteName = noteNames[midi % 12];
-                          return (
-                            <option key={midi} value={midi}>
-                              {noteName}{octave}
-                            </option>
-                          );
+                          return <option key={midi} value={midi}>{midiToNoteName(midi)}</option>;
                         })}
                       </select>
+                      {/* Row 2: Chord select */}
                       <select 
                         className="voicing-select"
                         value={padVoicings[stepIndex]}
@@ -1052,6 +1047,14 @@ function App() {
                           <option key={v} value={v}>{v}</option>
                         ))}
                       </select>
+                      {/* Row 3: +/- buttons */}
+                      <NoteStepper
+                        midi={padPitches[stepIndex]}
+                        min={36}
+                        max={72}
+                        onChange={(val) => handlePadPitchChange(stepIndex, val)}
+                        buttonsOnly
+                      />
                     </div>
                   );
                 })}

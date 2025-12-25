@@ -21,7 +21,7 @@
   --step-border: #3a3a3a;
   
   /* Sizing */
-  --step-size: 36px;
+  --step-size: 44px;
   --gap: 6px;
   --radius-sm: 4px;
   --radius-md: 8px;
@@ -217,8 +217,12 @@ h1 {
 }
 
 .controls input[type="range"] {
-  width: 100px;
+  width: 150px;
   cursor: pointer;
+}
+
+.controls input[type="range"].swing-slider {
+  width: 120px;
 }
 
 /* ============================================
@@ -442,8 +446,8 @@ h1 {
 }
 
 .param-item input[type="range"] {
-  width: 90px;
-  height: 4px;
+  width: 100px;
+  height: 6px;
 }
 
 /* Section 3: Sends & EQ */
@@ -464,11 +468,160 @@ h1 {
   gap: 4px;
 }
 
-/* Grid Row */
-.track-grid-row {
+/* ============================================
+   Vertical Sliders (Child-Friendly)
+   ============================================ */
+
+.vertical-slider-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.vertical-slider-container label {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.vertical-slider {
+  -webkit-appearance: slider-vertical;
+  appearance: slider-vertical;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 24px;
+  height: 80px;
+  background: var(--bg-tertiary);
+  border-radius: 12px;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+}
+
+.vertical-slider.volume-slider {
+  height: 100px;
+}
+
+.vertical-slider.send-slider {
+  height: 70px;
+}
+
+.vertical-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.vertical-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.vertical-controls-group {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  align-items: flex-end;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="day"] .vertical-controls-group {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.05);
+}
+
+/* ============================================
+   Track Main Row Layout (Pads + Gain + EQ/Sends)
+   ============================================ */
+
+.track-main-row {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
   width: 100%;
+  height: 100%;
+}
+
+/* Grid Row - pads */
+.track-grid-row {
+  flex: 1;
   padding-top: 2px;
-  padding-left: 52px; /* Align with M/S buttons (Label 40px + Gap 12px) */
+}
+
+/* Gain Slider Column - full height */
+.track-gain-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.track-gain-column .gain-slider {
+  flex: 1;
+  min-height: 60px;
+}
+
+.track-gain-column .gain-label {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+[data-theme="day"] .track-gain-column {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.05);
+}
+
+/* EQ/Sends Stacked Column */
+.track-eq-sends-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="day"] .track-eq-sends-column {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.05);
+}
+
+.track-eq-sends-column .eq-row {
+  display: flex;
+  gap: 4px;
+}
+
+.track-eq-sends-column .sends-row {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
 }
 
 /* Ensure steps spread out nicely */
@@ -670,6 +823,74 @@ h1 {
   box-shadow: 0 0 4px rgba(100, 149, 237, 0.3);
 }
 
+/* Pad note + chord row (side by side) */
+.pad-note-chord-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.pad-note-chord-row .note-display {
+  min-width: 22px;
+}
+
+.pad-note-chord-row .voicing-select {
+  width: auto;
+  min-width: 28px;
+  font-size: 0.4rem;
+}
+
+/* ============================================
+   Note Stepper Buttons (Child-Friendly)
+   ============================================ */
+
+.note-stepper {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.note-stepper-btn {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--step-border);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all 0.1s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+
+.note-stepper-btn:hover {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+  color: #000;
+}
+
+.note-stepper-btn:active {
+  transform: scale(0.95);
+}
+
+.note-stepper .note-display {
+  min-width: 28px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  padding: 3px 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--step-border);
+}
+
 
 
 /* ============================================
@@ -688,25 +909,27 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 12px;
-  height: 12px;
+  width: 18px;
+  height: 18px;
   background: var(--accent-primary);
   border-radius: 50%;
   cursor: pointer;
   transition: transform 0.1s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
+  transform: scale(1.2);
 }
 
 input[type="range"]::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
+  width: 18px;
+  height: 18px;
   background: var(--accent-primary);
   border-radius: 50%;
   cursor: pointer;
   border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* ============================================
@@ -876,6 +1099,14 @@ input[type="range"]::-moz-range-thumb {
 
   .track-main {
     gap: 12px;
+  }
+
+  /* Wrap params (sliders) on mobile to avoid overflow */
+  .track-params {
+    flex-wrap: wrap;
+    gap: 12px;
+    height: auto; /* Allow height to grow */
+    padding: 8px 0; /* Add vertical breathing room */
   }
 
   /* Scrollable Steps */
