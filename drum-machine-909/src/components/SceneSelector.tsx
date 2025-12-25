@@ -8,6 +8,9 @@ interface SceneSelectorProps {
   onSceneCopy: (index: number) => void;
   onScenePaste: (index: number) => void;
   onSceneClear: (index: number) => void;
+  onRandomizeActive: () => void;
+  onImport: () => void;
+  onExport: () => void;
 }
 
 export const SceneSelector: React.FC<SceneSelectorProps> = ({
@@ -17,6 +20,9 @@ export const SceneSelector: React.FC<SceneSelectorProps> = ({
   onSceneCopy,
   onScenePaste,
   onSceneClear,
+  onRandomizeActive,
+  onImport,
+  onExport,
 }) => {
   const sceneLabels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
   
@@ -28,7 +34,6 @@ export const SceneSelector: React.FC<SceneSelectorProps> = ({
   const handleContextMenu = (e: React.MouseEvent, index: number) => {
     e.preventDefault();
     // For now, just show a simple context menu using browser prompt
-    // In a production app, you'd use a custom context menu component
     const action = window.prompt(
       `Scene ${sceneLabels[index]} Actions:\n1 - Copy\n2 - Paste\n3 - Clear\n\nEnter number:`,
       '1'
@@ -45,7 +50,24 @@ export const SceneSelector: React.FC<SceneSelectorProps> = ({
 
   return (
     <div className="scene-selector">
-      <div className="scene-label">SCENES</div>
+      <div className="scene-selector-top">
+        <div className="scene-label">SCENES</div>
+        <div className="scene-global-actions">
+          <button className="scene-action-btn" onClick={() => onSceneClear(activeIndex)} title="Clear Active Scene">
+            Clear
+          </button>
+          <button className="scene-action-btn" onClick={onRandomizeActive} title="Randomize Active Scene">
+            Random
+          </button>
+          <div className="scene-divider" />
+          <button className="scene-action-btn" onClick={onImport} title="Import Scene (.json)">
+            Import
+          </button>
+          <button className="scene-action-btn" onClick={onExport} title="Export Scene (.json)">
+            Export
+          </button>
+        </div>
+      </div>
       <div className="scene-buttons">
         {sceneLabels.map((label, index) => (
           <button

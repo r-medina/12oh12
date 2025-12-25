@@ -413,6 +413,40 @@ function App() {
     downloadScene(scenes[activeSceneIndex]);
   }, [scenes, activeSceneIndex]);
 
+  const handleRandomizeActiveScene = useCallback(() => {
+    const instruments: Instrument[] = ['kick', 'snare', 'hihat', 'clap', 'bass', 'pad'];
+    const newGrid = { ...grid };
+    const newBassPitches = [...bassPitches];
+    const newPadPitches = [...padPitches];
+    const newPadVoicings = [...padVoicings];
+    const PAD_VOICING_OPTIONS = ['single', 'octave', 'fifth', 'major', 'minor', 'sus2', 'sus4'];
+
+    instruments.forEach(inst => {
+      const density = inst === 'kick' ? 0.3 : inst === 'snare' ? 0.2 : 0.4;
+      newGrid[inst] = new Array(16).fill(false).map(() => Math.random() < density);
+    });
+
+    // Randomize bass and pad steps
+    for (let i = 0; i < 16; i++) {
+        if (newGrid.bass[i]) newBassPitches[i] = Math.floor(Math.random() * 24) + 24; // C1 to C3
+        if (newGrid.pad[i]) {
+            newPadPitches[i] = Math.floor(Math.random() * 24) + 36; // C2 to C4
+            newPadVoicings[i] = PAD_VOICING_OPTIONS[Math.floor(Math.random() * PAD_VOICING_OPTIONS.length)];
+        }
+    }
+
+    setGrid(newGrid);
+    setBassPitches(newBassPitches);
+    setPadPitches(newPadPitches);
+    setPadVoicings(newPadVoicings);
+
+    // Sync to engine
+    AudioEngine.updateGrid(newGrid);
+    AudioEngine.updateBassPitches(newBassPitches);
+    AudioEngine.updatePadPitches(newPadPitches);
+    AudioEngine.updatePadVoicings(newPadVoicings);
+  }, [grid, bassPitches, padPitches, padVoicings]);
+
   const handleImport = useCallback(() => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -523,15 +557,6 @@ function App() {
           {isPlaying ? 'STOP' : 'START'}
         </button>
 
-        <div className="file-controls">
-          <button className="file-btn" onClick={handleExport} title="Export Scene (Cmd+E)">
-            Export
-          </button>
-          <button className="file-btn" onClick={handleImport}>
-            Import
-          </button>
-        </div>
-        
         <div className="control-group">
           <label>BPM: {bpm}</label>
           <input 
@@ -565,6 +590,9 @@ function App() {
         onSceneCopy={handleSceneCopy}
         onScenePaste={handleScenePaste}
         onSceneClear={handleSceneClear}
+        onRandomizeActive={handleRandomizeActiveScene}
+        onImport={handleImport}
+        onExport={handleExport}
       />
 
       <div className="sequencer-grid">
@@ -577,11 +605,11 @@ function App() {
                   <button className={`ms-btn ${mutes.kick ? 'active' : ''}`} onClick={() => handleMute('kick')}>M</button>
                   <button className={`ms-btn ${solos.kick ? 'active' : ''}`} onClick={() => handleSolo('kick')}>S</button>
               </div>
-              <div className="sends-row">
+              <div className="sends-row control-pill-group">
                  <Knob label="REV" min={-60} max={0} value={reverbSends.kick} onChange={v => handleReverbSendChange('kick', v)} size={28} />
                  <Knob label="DLY" min={-60} max={0} value={delaySends.kick} onChange={v => handleDelaySendChange('kick', v)} size={28} />
               </div>
-              <div className="eq-row">
+              <div className="eq-row control-pill-group">
                  <Knob label="Lo" min={-12} max={12} value={eqGains.kick.low} onChange={v => handleEQChange('kick', 'low', v)} onDoubleClick={() => handleEQChange('kick', 'low', 0)} size={24} />
                  <Knob label="Mid" min={-12} max={12} value={eqGains.kick.mid} onChange={v => handleEQChange('kick', 'mid', v)} onDoubleClick={() => handleEQChange('kick', 'mid', 0)} size={24} />
                  <Knob label="Hi" min={-12} max={12} value={eqGains.kick.high} onChange={v => handleEQChange('kick', 'high', v)} onDoubleClick={() => handleEQChange('kick', 'high', 0)} size={24} />
@@ -629,11 +657,11 @@ function App() {
                   <button className={`ms-btn ${mutes.snare ? 'active' : ''}`} onClick={() => handleMute('snare')}>M</button>
                   <button className={`ms-btn ${solos.snare ? 'active' : ''}`} onClick={() => handleSolo('snare')}>S</button>
               </div>
-              <div className="sends-row">
+              <div className="sends-row control-pill-group">
                  <Knob label="REV" min={-60} max={0} value={reverbSends.snare} onChange={v => handleReverbSendChange('snare', v)} size={28} />
                  <Knob label="DLY" min={-60} max={0} value={delaySends.snare} onChange={v => handleDelaySendChange('snare', v)} size={28} />
               </div>
-              <div className="eq-row">
+              <div className="eq-row control-pill-group">
                  <Knob label="Lo" min={-12} max={12} value={eqGains.snare.low} onChange={v => handleEQChange('snare', 'low', v)} onDoubleClick={() => handleEQChange('snare', 'low', 0)} size={24} />
                  <Knob label="Mid" min={-12} max={12} value={eqGains.snare.mid} onChange={v => handleEQChange('snare', 'mid', v)} onDoubleClick={() => handleEQChange('snare', 'mid', 0)} size={24} />
                  <Knob label="Hi" min={-12} max={12} value={eqGains.snare.high} onChange={v => handleEQChange('snare', 'high', v)} onDoubleClick={() => handleEQChange('snare', 'high', 0)} size={24} />
@@ -681,11 +709,11 @@ function App() {
                   <button className={`ms-btn ${mutes.hihat ? 'active' : ''}`} onClick={() => handleMute('hihat')}>M</button>
                   <button className={`ms-btn ${solos.hihat ? 'active' : ''}`} onClick={() => handleSolo('hihat')}>S</button>
               </div>
-              <div className="sends-row">
+              <div className="sends-row control-pill-group">
                  <Knob label="REV" min={-60} max={0} value={reverbSends.hihat} onChange={v => handleReverbSendChange('hihat', v)} size={28} />
                  <Knob label="DLY" min={-60} max={0} value={delaySends.hihat} onChange={v => handleDelaySendChange('hihat', v)} size={28} />
               </div>
-              <div className="eq-row">
+              <div className="eq-row control-pill-group">
                  <Knob label="Lo" min={-12} max={12} value={eqGains.hihat.low} onChange={v => handleEQChange('hihat', 'low', v)} onDoubleClick={() => handleEQChange('hihat', 'low', 0)} size={24} />
                  <Knob label="Mid" min={-12} max={12} value={eqGains.hihat.mid} onChange={v => handleEQChange('hihat', 'mid', v)} onDoubleClick={() => handleEQChange('hihat', 'mid', 0)} size={24} />
                  <Knob label="Hi" min={-12} max={12} value={eqGains.hihat.high} onChange={v => handleEQChange('hihat', 'high', v)} onDoubleClick={() => handleEQChange('hihat', 'high', 0)} size={24} />
@@ -733,11 +761,11 @@ function App() {
                   <button className={`ms-btn ${mutes.clap ? 'active' : ''}`} onClick={() => handleMute('clap')}>M</button>
                   <button className={`ms-btn ${solos.clap ? 'active' : ''}`} onClick={() => handleSolo('clap')}>S</button>
               </div>
-              <div className="sends-row">
+              <div className="sends-row control-pill-group">
                  <Knob label="REV" min={-60} max={0} value={reverbSends.clap} onChange={v => handleReverbSendChange('clap', v)} size={28} />
                  <Knob label="DLY" min={-60} max={0} value={delaySends.clap} onChange={v => handleDelaySendChange('clap', v)} size={28} />
               </div>
-              <div className="eq-row">
+              <div className="eq-row control-pill-group">
                  <Knob label="Lo" min={-12} max={12} value={eqGains.clap.low} onChange={v => handleEQChange('clap', 'low', v)} onDoubleClick={() => handleEQChange('clap', 'low', 0)} size={24} />
                  <Knob label="Mid" min={-12} max={12} value={eqGains.clap.mid} onChange={v => handleEQChange('clap', 'mid', v)} onDoubleClick={() => handleEQChange('clap', 'mid', 0)} size={24} />
                  <Knob label="Hi" min={-12} max={12} value={eqGains.clap.high} onChange={v => handleEQChange('clap', 'high', v)} onDoubleClick={() => handleEQChange('clap', 'high', 0)} size={24} />
@@ -785,11 +813,11 @@ function App() {
                   <button className={`ms-btn ${mutes.bass ? 'active' : ''}`} onClick={() => handleMute('bass')}>M</button>
                   <button className={`ms-btn ${solos.bass ? 'active' : ''}`} onClick={() => handleSolo('bass')}>S</button>
               </div>
-              <div className="sends-row">
+              <div className="sends-row control-pill-group">
                  <Knob label="REV" min={-60} max={0} value={reverbSends.bass} onChange={v => handleReverbSendChange('bass', v)} size={28} />
                  <Knob label="DLY" min={-60} max={0} value={delaySends.bass} onChange={v => handleDelaySendChange('bass', v)} size={28} />
               </div>
-              <div className="eq-row">
+              <div className="eq-row control-pill-group">
                  <Knob label="Lo" min={-12} max={12} value={eqGains.bass.low} onChange={v => handleEQChange('bass', 'low', v)} onDoubleClick={() => handleEQChange('bass', 'low', 0)} size={24} />
                  <Knob label="Mid" min={-12} max={12} value={eqGains.bass.mid} onChange={v => handleEQChange('bass', 'mid', v)} onDoubleClick={() => handleEQChange('bass', 'mid', 0)} size={24} />
                  <Knob label="Hi" min={-12} max={12} value={eqGains.bass.high} onChange={v => handleEQChange('bass', 'high', v)} onDoubleClick={() => handleEQChange('bass', 'high', 0)} size={24} />
@@ -863,11 +891,11 @@ function App() {
                   <button className={`ms-btn ${mutes.pad ? 'active' : ''}`} onClick={() => handleMute('pad')}>M</button>
                   <button className={`ms-btn ${solos.pad ? 'active' : ''}`} onClick={() => handleSolo('pad')}>S</button>
               </div>
-              <div className="sends-row">
+              <div className="sends-row control-pill-group">
                  <Knob label="REV" min={-60} max={0} value={reverbSends.pad} onChange={v => handleReverbSendChange('pad', v)} size={28} />
                  <Knob label="DLY" min={-60} max={0} value={delaySends.pad} onChange={v => handleDelaySendChange('pad', v)} size={28} />
               </div>
-              <div className="eq-row">
+              <div className="eq-row control-pill-group">
                  <Knob label="Lo" min={-12} max={12} value={eqGains.pad.low} onChange={v => handleEQChange('pad', 'low', v)} onDoubleClick={() => handleEQChange('pad', 'low', 0)} size={24} />
                  <Knob label="Mid" min={-12} max={12} value={eqGains.pad.mid} onChange={v => handleEQChange('pad', 'mid', v)} onDoubleClick={() => handleEQChange('pad', 'mid', 0)} size={24} />
                  <Knob label="Hi" min={-12} max={12} value={eqGains.pad.high} onChange={v => handleEQChange('pad', 'high', v)} onDoubleClick={() => handleEQChange('pad', 'high', 0)} size={24} />
