@@ -8,8 +8,16 @@ const masterVol = new Tone.Volume(0);
 const tapeChain = new TapeChain();
 const meter = new Tone.Meter();
 
-// Chain: masterVol -> TapeChain -> Analyser -> Meter -> Destination
-masterVol.connect(tapeChain.input);
+// Chain: masterVol -> MasterCompressor -> TapeChain -> Analyser -> Meter -> Destination
+const masterCompressor = new Tone.Compressor({
+  threshold: -20,
+  ratio: 2,
+  attack: 0.05,
+  release: 0.2
+});
+
+masterVol.connect(masterCompressor);
+masterCompressor.connect(tapeChain.input);
 tapeChain.output.connect(analyser);
 analyser.connect(meter);
 meter.toDestination();
@@ -17,10 +25,12 @@ meter.toDestination();
 
 // -- Effects --
 const reverb = new Tone.Reverb({
-  decay: 2.5,
-  preDelay: 0.01,
+  decay: 4.0,
+  preDelay: 0.05,
   wet: 1.0 // Send effect, so full wet on the bus
-}).connect(masterVol);
+});
+const reverbFilter = new Tone.Filter(600, "highpass");
+reverb.chain(reverbFilter, masterVol);
 reverb.generate(); // Required for Reverb to start working
 
 const delay = new Tone.FeedbackDelay({
