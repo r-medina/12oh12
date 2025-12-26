@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect, useCallback, useMemo } from 'react';
 import { AudioEngine } from './audio/engine';
 import { Visualizer } from './components/Visualizer';
 import { TrackRow } from './components/TrackRow';
@@ -141,6 +141,15 @@ function App() {
   const [proMode, setProMode] = useState(false);
   const [proModeParams, setProModeParams] = useState<ProModeParams>(INITIAL_PRO_MODE_PARAMS);
 
+  /* Per-step Bass Pitches (MIDI notes) */
+  const [bassPitches, setBassPitches] = useState<number[]>(new Array(16).fill(36)); // Default C2 (36)
+  /* Per-step Pad Pitches & Voicings */
+  const [padPitches, setPadPitches] = useState<number[]>(new Array(16).fill(48)); // Default C3 (48)
+  const [padVoicings, setPadVoicings] = useState<string[]>(new Array(16).fill('single'));
+  const PAD_VOICING_OPTIONS = ['single', 'major', 'minor', 'maj7', 'min7', 'sus4', 'dim', 'aug'];
+  /* Per-step Poly Notes (Piano Roll) */
+  const [polyNotes, setPolyNotes] = useState<number[][]>(new Array(16).fill([]));
+
   // Scene management
   const [scenes, setScenes] = useState<Scene[]>(() => loadScenes());
   const [activeSceneIndex, setActiveSceneIndex] = useState(0);
@@ -278,118 +287,138 @@ function App() {
   };
 
 
-  const setStepState = (inst: Instrument, stepIndex: number, isActive: boolean) => {
-    // Avoid unnecessary state updates
-    if (grid[inst][stepIndex] === isActive) return;
-    
-    const newRow = [...grid[inst]];
-    newRow[stepIndex] = isActive;
-    const newGrid = { ...grid, [inst]: newRow };
-    setGrid(newGrid);
-    AudioEngine.updateGrid(newGrid);
-  }
+  /* Handlers with functional updates for stability */
+  const setStepState = useCallback((inst: Instrument, stepIndex: number, isActive: boolean) => {
+    setGrid(prev => {
+        if (prev[inst][stepIndex] === isActive) return prev;
+        const newRow = [...prev[inst]];
+        newRow[stepIndex] = isActive;
+        const newGrid = { ...prev, [inst]: newRow };
+        AudioEngine.updateGrid(newGrid);
+        return newGrid;
+    });
+  }, []);
 
-  const handleStepMouseDown = (inst: Instrument, stepIndex: number) => {
+  const handleStepMouseDown = useCallback((inst: Instrument, stepIndex: number) => {
     isDrawing.current = true;
-    const newState = !grid[inst][stepIndex];
-    drawMode.current = newState;
-    setStepState(inst, stepIndex, newState);
-  };
+    // We need to know current state to toggle. 
+    // We can peek at state in setter, but we need 'drawMode.current' updated too.
+    // Using functional update pattern where we run side effects:
+    setGrid(prev => {
+        const newState = !prev[inst][stepIndex];
+        drawMode.current = newState;
+        
+        const newRow = [...prev[inst]];
+        newRow[stepIndex] = newState;
+        const newGrid = { ...prev, [inst]: newRow };
+        AudioEngine.updateGrid(newGrid);
+        return newGrid;
+    });
+  }, []);
 
-  const handleStepMouseEnter = (inst: Instrument, stepIndex: number) => {
+  const handleStepMouseEnter = useCallback((inst: Instrument, stepIndex: number) => {
     if (isDrawing.current) {
         setStepState(inst, stepIndex, drawMode.current);
     }
-  };
+  }, [setStepState]);
 
 
-  const handleMute = (inst: Instrument) => {
-    const newVal = !mutes[inst];
-    setMutes({ ...mutes, [inst]: newVal });
-    AudioEngine.setMute(inst, newVal);
-  };
+  const handleMute = useCallback((inst: Instrument) => {
+    setMutes(prev => {
+        const newVal = !prev[inst];
+        AudioEngine.setMute(inst, newVal);
+        return { ...prev, [inst]: newVal };
+    });
+  }, []);
 
-  const handleSolo = (inst: Instrument) => {
-    const newVal = !solos[inst];
-    setSolos({ ...solos, [inst]: newVal });
-    AudioEngine.setSolo(inst, newVal);
-  };
+  const handleSolo = useCallback((inst: Instrument) => {
+    setSolos(prev => {
+        const newVal = !prev[inst];
+        AudioEngine.setSolo(inst, newVal);
+        return { ...prev, [inst]: newVal };
+    });
+  }, []);
 
-  const handleVolumeChange = (inst: Instrument, val: number) => {
+  const handleVolumeChange = useCallback((inst: Instrument, val: number) => {
     // Snap to -12dB when within ±2dB
     let snappedVal = val;
     if (val >= -14 && val <= -10 && val !== -12) {
       snappedVal = -12;
     }
-    setVolumes({ ...volumes, [inst]: snappedVal });
+    setVolumes(prev => ({ ...prev, [inst]: snappedVal }));
     AudioEngine.setVolume(inst, snappedVal);
-  };
+  }, []);
 
-  const handleReverbSendChange = (inst: Instrument, val: number) => {
-    setReverbSends({ ...reverbSends, [inst]: val });
+  const handleReverbSendChange = useCallback((inst: Instrument, val: number) => {
+    setReverbSends(prev => ({ ...prev, [inst]: val }));
     AudioEngine.setReverbSend(inst, val);
-  };
+  }, []);
 
-  const handleDelaySendChange = (inst: Instrument, val: number) => {
-    setDelaySends({ ...delaySends, [inst]: val });
+  const handleDelaySendChange = useCallback((inst: Instrument, val: number) => {
+    setDelaySends(prev => ({ ...prev, [inst]: val }));
     AudioEngine.setDelaySend(inst, val);
-  };
+  }, []);
 
-  const handleEQChange = (inst: Instrument, band: 'low' | 'mid' | 'high', val: number) => {
-    const newGains = { ...eqGains, [inst]: { ...eqGains[inst], [band]: val } };
-    setEqGains(newGains);
+  const handleEQChange = useCallback((inst: Instrument, band: 'low' | 'mid' | 'high', val: number) => {
+    setEqGains(prev => ({ ...prev, [inst]: { ...prev[inst], [band]: val } }));
     AudioEngine.setChannelEQ(inst, band, val);
-  };
+  }, []);
 
 
-  const handleSwingChange = (val: number) => {
+  const handleSwingChange = useCallback((val: number) => {
     setSwing(val);
     AudioEngine.setSwing(val);
-  };
+  }, []);
 
-  const handleBpmChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBpmChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newBpm = parseInt(e.target.value);
     setBpm(newBpm);
     AudioEngine.setBpm(newBpm);
-  };
+  }, []);
+
+  /* Use Refs for stable access in handlers */
+  const gridRef = useRef(grid);
+  const velocitiesRef = useRef(velocities);
+  useEffect(() => { gridRef.current = grid; }, [grid]);
+  useEffect(() => { velocitiesRef.current = velocities; }, [velocities]);
 
   const handleVelocityWheel = useCallback((e: WheelEvent, inst: Instrument, step: number) => {
-    if (!grid[inst][step]) return; // Only edit velocity if step is active
+     const currentGrid = gridRef.current;
+     if (!currentGrid[inst][step]) return; 
 
     // Scroll DOWN (positive deltaY) => Increase Value (macOS natural scrolling)
     const d = e.deltaY > 0 ? 1 : -1;
     const amount = e.shiftKey ? 10 : 1;
     
-    const current = velocities[inst][step] || 100;
-    let next = Math.min(127, Math.max(1, current + (d * amount)));
-    
-    if (next === current) return;
-    
-    const newRow = [...velocities[inst]];
-    newRow[step] = next;
-    const newVelocities = { ...velocities, [inst]: newRow };
-    setVelocities(newVelocities);
-    AudioEngine.updateVelocities(newVelocities);
-  }, [grid, velocities]);
+    setVelocities(prev => {
+        const current = prev[inst][step] || 100;
+        let next = Math.min(127, Math.max(1, current + (d * amount)));
+        if (next === current) return prev;
+        
+        const newRow = [...prev[inst]];
+        newRow[step] = next;
+        const newVelocities = { ...prev, [inst]: newRow };
+        AudioEngine.updateVelocities(newVelocities);
+        return newVelocities;
+    });
+  }, []);
 
-  /* Per-step Bass Pitches (MIDI notes) */
-  const [bassPitches, setBassPitches] = useState<number[]>(new Array(16).fill(36)); // Default C2 (36)
-
-  const handleBassPitchChange = (stepIndex: number, val: number) => {
+  /* Per-step Bass Pitches Handlers (State moved to top) */
+  const handleBassPitchChange = useCallback((stepIndex: number, val: number) => {
     const clampedVal = Math.max(24, Math.min(60, val)); // C1 to C4
     const newPitches = [...bassPitches];
     newPitches[stepIndex] = clampedVal;
     setBassPitches(newPitches);
     AudioEngine.updateBassPitches(newPitches);
-  };
+  }, [bassPitches]);
 
   const handleNoteWheel = useCallback((e: WheelEvent, stepIndex: number) => {
     const current = bassPitches[stepIndex];
     const delta = e.deltaY > 0 ? 1 : -1;
     handleBassPitchChange(stepIndex, current + delta);
-  }, [bassPitches]);
+  }, [bassPitches, handleBassPitchChange]);
 
-  const handleParamChange = (inst: keyof InstrumentParams, param: string, val: number) => {
+  const handleParamChange = useCallback((inst: keyof InstrumentParams, param: string, val: number) => {
     // Update state
     setParams(prev => ({
       ...prev,
@@ -432,14 +461,31 @@ function App() {
       if (param === 'filter') AudioEngine.setPolyFilter(val);
       if (param === 'detune') AudioEngine.setPolyDetune(val);
     }
-  };
+  }, []);
 
-  /* Per-step Pad Pitches & Voicings */
-  const [padPitches, setPadPitches] = useState<number[]>(new Array(16).fill(48)); // Default C3 (48)
-  const [padVoicings, setPadVoicings] = useState<string[]>(new Array(16).fill('single'));
+  /* Per-step Pad Pitches & Voicings Handlers (State moved to top) */
+  const handlePadPitchChange = useCallback((stepIndex: number, val: number) => {
+    const clampedVal = Math.max(36, Math.min(72, val));
+    const newPitches = [...padPitches];
+    newPitches[stepIndex] = clampedVal;
+    setPadPitches(newPitches);
+    AudioEngine.updatePadPitches(newPitches);
+  }, [padPitches]);
 
-  /* Per-step Poly Notes (Piano Roll) */
-  const [polyNotes, setPolyNotes] = useState<number[][]>(new Array(16).fill([]));
+  const handlePadNoteWheel = useCallback((e: WheelEvent, stepIndex: number) => {
+    const current = padPitches[stepIndex];
+    const delta = e.deltaY > 0 ? 1 : -1;
+    handlePadPitchChange(stepIndex, current + delta);
+  }, [padPitches, handlePadPitchChange]);
+
+  const handlePadVoicingChange = useCallback((stepIndex: number, voicing: string) => {
+     const newVoicings = [...padVoicings];
+     newVoicings[stepIndex] = voicing;
+     setPadVoicings(newVoicings);
+     AudioEngine.updatePadVoicings(newVoicings);
+  }, [padVoicings]);
+
+
 
   // Handler for pro mode parameter changes
   const handleProModeParamChange = (category: keyof ProModeParams, param: string, value: any) => {
@@ -825,46 +871,391 @@ function App() {
     onHelp: () => setShowShortcutHelp(true),
   }, true);
 
-  const PAD_VOICING_OPTIONS = ['single', 'octave', 'fifth', 'major', 'minor', 'sus2', 'sus4'];
 
-  const handlePadPitchChange = (stepIndex: number, val: number) => {
-    const clampedVal = Math.max(36, Math.min(72, val)); // C2 to C5
-    const newPitches = [...padPitches];
-    newPitches[stepIndex] = clampedVal;
-    setPadPitches(newPitches);
-    AudioEngine.updatePadPitches(newPitches);
-  };
-
-  const handlePadVoicingChange = (stepIndex: number, voicing: string) => {
-    const newVoicings = [...padVoicings];
-    newVoicings[stepIndex] = voicing;
-    setPadVoicings(newVoicings);
-    AudioEngine.updatePadVoicings(newVoicings);
-  };
-
-  const handlePadNoteWheel = useCallback((e: WheelEvent, stepIndex: number) => {
-    const current = padPitches[stepIndex];
-    const delta = e.deltaY > 0 ? 1 : -1;
-    handlePadPitchChange(stepIndex, current + delta);
-  }, [padPitches]);
 
   /* Poly Note Handlers */
-  const handlePolyNotesChange = (stepIndex: number, notes: number[]) => {
-    const newNotes = [...polyNotes];
-    newNotes[stepIndex] = notes;
-    setPolyNotes(newNotes);
-    AudioEngine.updatePolyNotes(newNotes);
+  const handlePolyNotesChange = useCallback((stepIndex: number, notes: number[]) => {
+    setPolyNotes(prev => {
+        const newNotes = [...prev];
+        newNotes[stepIndex] = notes;
+        AudioEngine.updatePolyNotes(newNotes);
+        return newNotes;
+    });
 
-    // Also update grid state if needed - though PianoRoll handles notes
-    // We should ensure the step is active in the grid if it has notes
-    if (notes.length > 0 && !grid.poly[stepIndex]) {
-        // Auto-enable step in sequencer grid if notes are added
-        setStepState('poly', stepIndex, true);
-    } else if (notes.length === 0 && grid.poly[stepIndex]) {
-        // Optional: Auto-disable step if notes are empty? Maybe better not to force it.
-    }
-  };
+    // Auto-enable step in sequencer grid if notes are added
+    // Needs access to current Grid. 
+    setGrid(prev => {
+        if (notes.length > 0 && !prev.poly[stepIndex]) {
+            const newRow = [...prev.poly];
+            newRow[stepIndex] = true;
+            const newGrid = { ...prev, poly: newRow };
+            AudioEngine.updateGrid(newGrid);
+            return newGrid;
+        }
+        return prev;
+    });
+  }, []);
+
+  // -- MEMOIZED CHILD COMPONENTS --
+  // Kick
+  const kickControls = useMemo(() => (
+    <>
+      <div className="param-item">
+        <label>Tune</label>
+        <ScrollableSlider min={0.01} max={0.3} step={0.01} value={params.kick.tune} onChange={e => handleParamChange('kick', 'tune', Number(e.target.value))} />
+      </div>
+      <div className="param-item">
+        <label>Decay</label>
+        <ScrollableSlider min={0.1} max={2.0} step={0.1} value={params.kick.decay} onChange={e => handleParamChange('kick', 'decay', Number(e.target.value))} />
+      </div>
+      <div className="param-item">
+        <label>Dist</label>
+        <ScrollableSlider min={0} max={0.6} step={0.01} value={params.kick.distortion || 0} onChange={e => handleParamChange('kick', 'distortion', Number(e.target.value))} />
+      </div>
+    </>
+  ), [params.kick, handleParamChange]);
+
+  const kickSteps = useMemo(() => (
+    <div className="steps-container">
+    {[0, 1, 2, 3].map(groupIdx => (
+        <div key={groupIdx} className="step-group">
+        {[0, 1, 2, 3].map(stepInGroup => {
+            const stepIndex = groupIdx * 4 + stepInGroup;
+            const isActive = grid.kick[stepIndex];
+            const stepVel = velocities.kick[stepIndex];
+            return (
+            <Step
+                key={stepIndex}
+                isActive={isActive}
+                isCurrent={currentStep === stepIndex && isPlaying}
+                velocity={stepVel}
+                onMouseDown={() => handleStepMouseDown('kick', stepIndex)}
+                onMouseEnter={() => handleStepMouseEnter('kick', stepIndex)}
+                onWheel={(e) => handleVelocityWheel(e, 'kick', stepIndex)}
+            />
+            );
+        })}
+        </div>
+    ))}
+    </div>
+  ), [grid.kick, velocities.kick, currentStep, isPlaying, handleStepMouseDown, handleStepMouseEnter, handleVelocityWheel]);
+
+  // Snare
+  const snareControls = useMemo(() => (
+    <>
+      <div className="param-item">
+        <label>Tone</label>
+        <ScrollableSlider min={400} max={6000} step={100} value={params.snare.tone} onChange={e => handleParamChange('snare', 'tone', Number(e.target.value))} />
+      </div>
+      <div className="param-item">
+        <label>Snappy</label>
+        <ScrollableSlider min={0.05} max={0.5} step={0.01} value={params.snare.snappy} onChange={e => handleParamChange('snare', 'snappy', Number(e.target.value))} />
+      </div>
+    </>
+  ), [params.snare, handleParamChange]);
+
+  const snareSteps = useMemo(() => (
+    <div className="steps-container">
+    {[0, 1, 2, 3].map(groupIdx => (
+        <div key={groupIdx} className="step-group">
+        {[0, 1, 2, 3].map(stepInGroup => {
+            const stepIndex = groupIdx * 4 + stepInGroup;
+            const isActive = grid.snare[stepIndex];
+            const stepVel = velocities.snare[stepIndex];
+            return (
+            <Step
+                key={stepIndex}
+                isActive={isActive}
+                isCurrent={currentStep === stepIndex && isPlaying}
+                velocity={stepVel}
+                onMouseDown={() => handleStepMouseDown('snare', stepIndex)}
+                onMouseEnter={() => handleStepMouseEnter('snare', stepIndex)}
+                onWheel={(e) => handleVelocityWheel(e, 'snare', stepIndex)}
+            />
+            );
+        })}
+        </div>
+    ))}
+    </div>
+  ), [grid.snare, velocities.snare, currentStep, isPlaying, handleStepMouseDown, handleStepMouseEnter, handleVelocityWheel]);
+
+  // Hihat
+  const hihatControls = useMemo(() => (
+    <>
+        <div className="param-item">
+        <label>Decay</label>
+        <ScrollableSlider min={0.05} max={1.0} step={0.01} value={params.hihat.decay} onChange={e => handleParamChange('hihat', 'decay', Number(e.target.value))} />
+        </div>
+        <div className="param-item">
+        <label>Tone</label>
+        <ScrollableSlider min={500} max={10000} step={100} value={params.hihat.tone} onChange={e => handleParamChange('hihat', 'tone', Number(e.target.value))} />
+        </div>
+    </>
+  ), [params.hihat, handleParamChange]);
+
+  const hihatSteps = useMemo(() => (
+    <div className="steps-container">
+    {[0, 1, 2, 3].map(groupIdx => (
+        <div key={groupIdx} className="step-group">
+        {[0, 1, 2, 3].map(stepInGroup => {
+            const stepIndex = groupIdx * 4 + stepInGroup;
+            const isActive = grid.hihat[stepIndex];
+            const stepVel = velocities.hihat[stepIndex];
+            return (
+            <Step
+                key={stepIndex}
+                isActive={isActive}
+                isCurrent={currentStep === stepIndex && isPlaying}
+                velocity={stepVel}
+                onMouseDown={() => handleStepMouseDown('hihat', stepIndex)}
+                onMouseEnter={() => handleStepMouseEnter('hihat', stepIndex)}
+                onWheel={(e) => handleVelocityWheel(e, 'hihat', stepIndex)}
+            />
+            );
+        })}
+        </div>
+    ))}
+    </div>
+  ), [grid.hihat, velocities.hihat, currentStep, isPlaying, handleStepMouseDown, handleStepMouseEnter, handleVelocityWheel]);
   
+  // Clap
+  const clapControls = useMemo(() => (
+    <>
+        <div className="param-item">
+        <label>Decay</label>
+        <ScrollableSlider min={0.01} max={0.5} step={0.01} value={params.clap.decay} onChange={e => handleParamChange('clap', 'decay', Number(e.target.value))} />
+        </div>
+        <div className="param-item">
+        <label>Tone</label>
+        <ScrollableSlider min={500} max={4000} step={100} value={params.clap.tone} onChange={e => handleParamChange('clap', 'tone', Number(e.target.value))} />
+        </div>
+    </>
+  ), [params.clap, handleParamChange]);
+
+  const clapSteps = useMemo(() => (
+    <div className="steps-container">
+    {[0, 1, 2, 3].map(groupIdx => (
+        <div key={groupIdx} className="step-group">
+        {[0, 1, 2, 3].map(stepInGroup => {
+            const stepIndex = groupIdx * 4 + stepInGroup;
+            const isActive = grid.clap[stepIndex];
+            const stepVel = velocities.clap[stepIndex];
+            return (
+            <Step
+                key={stepIndex}
+                isActive={isActive}
+                isCurrent={currentStep === stepIndex && isPlaying}
+                velocity={stepVel}
+                onMouseDown={() => handleStepMouseDown('clap', stepIndex)}
+                onMouseEnter={() => handleStepMouseEnter('clap', stepIndex)}
+                onWheel={(e) => handleVelocityWheel(e, 'clap', stepIndex)}
+            />
+            );
+        })}
+        </div>
+    ))}
+    </div>
+  ), [grid.clap, velocities.clap, currentStep, isPlaying, handleStepMouseDown, handleStepMouseEnter, handleVelocityWheel]);
+
+  // Bass
+  const bassControls = useMemo(() => (
+    <>
+      <div className="param-item">
+        <label>Cutoff</label>
+        <ScrollableSlider min={50} max={5000} step={10} value={params.bass.cutoff} onChange={e => handleParamChange('bass', 'cutoff', Number(e.target.value))} />
+      </div>
+      <div className="param-item">
+        <label>Res</label>
+        <ScrollableSlider min={0} max={20} step={0.1} value={params.bass.resonance} onChange={e => handleParamChange('bass', 'resonance', Number(e.target.value))} />
+      </div>
+      <div className="param-item">
+        <label>Env Mod</label>
+        <ScrollableSlider min={0} max={8} step={0.1} value={params.bass.envMod} onChange={e => handleParamChange('bass', 'envMod', Number(e.target.value))} />
+      </div>
+      <div className="param-item">
+        <label>Decay</label>
+        <ScrollableSlider min={0.1} max={2.0} step={0.1} value={params.bass.decay} onChange={e => handleParamChange('bass', 'decay', Number(e.target.value))} />
+      </div>
+    </>
+  ), [params.bass, handleParamChange]);
+
+  const bassSteps = useMemo(() => (
+    <div className="bass-steps-container">
+    {[0, 1, 2, 3].map(groupIdx => (
+        <div key={groupIdx} className="step-group bass-group">
+        {[0, 1, 2, 3].map(stepInGroup => {
+            const stepIndex = groupIdx * 4 + stepInGroup;
+            const isActive = grid.bass[stepIndex];
+            const stepVel = velocities.bass[stepIndex];
+            return (
+            <div key={stepIndex} className="bass-step-wrapper">
+                <Step
+                isActive={isActive}
+                isCurrent={currentStep === stepIndex && isPlaying}
+                velocity={stepVel}
+                onMouseDown={() => handleStepMouseDown('bass', stepIndex)}
+                onMouseEnter={() => handleStepMouseEnter('bass', stepIndex)}
+                onWheel={(e) => handleVelocityWheel(e, 'bass', stepIndex)}
+                />
+                <ScrollableSelect 
+                className="note-select"
+                value={bassPitches[stepIndex]}
+                onChange={(e) => handleBassPitchChange(stepIndex, Number(e.target.value))}
+                onWheel={(e) => handleNoteWheel(e, stepIndex)}
+                >
+                {Array.from({ length: 37 }, (_, i) => {
+                    const midi = 60 - i;
+                    return <option key={midi} value={midi}>{midiToNoteName(midi)}</option>;
+                })}
+                </ScrollableSelect>
+                <NoteStepper
+                midi={bassPitches[stepIndex]}
+                min={24}
+                max={60}
+                onChange={(val) => handleBassPitchChange(stepIndex, val)}
+                buttonsOnly
+                />
+            </div>
+            );
+        })}
+        </div>
+    ))}
+    </div>
+  ), [grid.bass, velocities.bass, currentStep, isPlaying, bassPitches, handleStepMouseDown, handleStepMouseEnter, handleVelocityWheel, handleBassPitchChange, handleNoteWheel]);
+
+  // Pad
+  const padControls = useMemo(() => (
+    <>
+        <div className="param-item">
+        <label>Attack</label>
+        <ScrollableSlider min={0.01} max={1.0} step={0.01} value={params.pad.attack} onChange={e => handleParamChange('pad', 'attack', Number(e.target.value))} />
+        </div>
+        <div className="param-item">
+        <label>Release</label>
+        <ScrollableSlider min={0.1} max={3.0} step={0.1} value={params.pad.release} onChange={e => handleParamChange('pad', 'release', Number(e.target.value))} />
+        </div>
+        <div className="param-item">
+        <label>Filter</label>
+        <ScrollableSlider min={100} max={8000} step={50} value={params.pad.cutoff} onChange={e => handleParamChange('pad', 'cutoff', Number(e.target.value))} />
+        </div>
+        <div className="param-item">
+        <label>Detune</label>
+        <ScrollableSlider min={0} max={30} step={1} value={params.pad.detune} onChange={e => handleParamChange('pad', 'detune', Number(e.target.value))} />
+        </div>
+        <div className="param-item">
+        <label>Distortion</label>
+        <ScrollableSlider min={0} max={1} step={0.01} value={params.pad.distortion} onChange={e => handleParamChange('pad', 'distortion', Number(e.target.value))} />
+        </div>
+    </>
+  ), [params.pad, handleParamChange]);
+
+  const padSteps = useMemo(() => (
+    <div className="pad-steps-container">
+    {[0, 1, 2, 3].map(groupIdx => (
+        <div key={groupIdx} className="step-group pad-group">
+        {[0, 1, 2, 3].map(stepInGroup => {
+            const stepIndex = groupIdx * 4 + stepInGroup;
+            const isActive = grid.pad[stepIndex];
+            const stepVel = velocities.pad[stepIndex];
+            return (
+            <div key={stepIndex} className="pad-step-wrapper">
+                <Step
+                isActive={isActive}
+                isCurrent={currentStep === stepIndex && isPlaying}
+                velocity={stepVel}
+                onMouseDown={() => handleStepMouseDown('pad', stepIndex)}
+                onMouseEnter={() => handleStepMouseEnter('pad', stepIndex)}
+                onWheel={(e) => handleVelocityWheel(e, 'pad', stepIndex)}
+                />
+                <ScrollableSelect 
+                className="note-select"
+                value={padPitches[stepIndex]}
+                onChange={(e) => handlePadPitchChange(stepIndex, Number(e.target.value))}
+                onWheel={(e) => handlePadNoteWheel(e, stepIndex)}
+                >
+                {Array.from({ length: 37 }, (_, i) => {
+                    const midi = 72 - i;
+                    return <option key={midi} value={midi}>{midiToNoteName(midi)}</option>;
+                })}
+                </ScrollableSelect>
+                <ScrollableSelect 
+                className="voicing-select"
+                value={padVoicings[stepIndex]}
+                onChange={(e) => handlePadVoicingChange(stepIndex, e.target.value)}
+                >
+                {PAD_VOICING_OPTIONS.map(v => (
+                    <option key={v} value={v}>{v}</option>
+                ))}
+                </ScrollableSelect>
+                <NoteStepper
+                midi={padPitches[stepIndex]}
+                min={36}
+                max={72}
+                onChange={(val) => handlePadPitchChange(stepIndex, val)}
+                buttonsOnly
+                />
+            </div>
+            );
+        })}
+        </div>
+    ))}
+    </div>
+  ), [grid.pad, velocities.pad, currentStep, isPlaying, padPitches, padVoicings, handleStepMouseDown, handleStepMouseEnter, handleVelocityWheel, handlePadPitchChange, handlePadNoteWheel, handlePadVoicingChange, PAD_VOICING_OPTIONS]);
+
+  // Poly
+  const polyControls = useMemo(() => (
+    <>
+        <div className="param-item">
+        <label>Wave</label>
+        <ScrollableSelect 
+            value={params.poly.oscillator || 'square'} 
+            onChange={(e) => {
+                const val = e.target.value as any;
+                handleParamChange('poly', 'oscillator', val);
+                AudioEngine.setPolyOscillator(val);
+            }}
+            style={{ width: '60px' }}
+        >
+            <option value="square">Sqr</option>
+            <option value="sawtooth">Saw</option>
+            <option value="triangle">Tri</option>
+        </ScrollableSelect>
+        </div>
+        <div className="param-item">
+        <label>Attack</label>
+        <ScrollableSlider min={0.01} max={1.0} step={0.01} value={params.poly.attack} onChange={e => handleParamChange('poly', 'attack', Number(e.target.value))} />
+        </div>
+        <div className="param-item">
+        <label>Decay</label>
+        <ScrollableSlider min={0.1} max={2.0} step={0.1} value={params.poly.decay} onChange={e => handleParamChange('poly', 'decay', Number(e.target.value))} />
+        </div>
+        <div className="param-item">
+        <label>Filter</label>
+        <ScrollableSlider min={100} max={5000} step={50} value={params.poly.filter} onChange={e => handleParamChange('poly', 'filter', Number(e.target.value))} />
+        </div>
+        <div className="param-item">
+        <label>Sus</label>
+        <ScrollableSlider min={0} max={1} step={0.01} value={params.poly.sustain} onChange={e => handleParamChange('poly', 'sustain', Number(e.target.value))} />
+        </div>
+        <div className="param-item">
+        <label>Rel</label>
+        <ScrollableSlider min={0.1} max={3.0} step={0.1} value={params.poly.release} onChange={e => handleParamChange('poly', 'release', Number(e.target.value))} />
+        </div>
+    </>
+  ), [params.poly, handleParamChange]);
+
+  const polySteps = useMemo(() => (
+    <div style={{ padding: '4px 0' }}>
+    <PianoRoll 
+        currentStep={isPlaying ? currentStep : -1}
+        steps={polyNotes}
+        onChange={handlePolyNotesChange}
+        minNote={48} // C3
+        maxNote={84} // C6
+    />
+    </div>
+  ), [isPlaying, currentStep, polyNotes, handlePolyNotesChange]);
+
   return (
     <div className="container">
       <div className="header">
@@ -956,52 +1347,15 @@ function App() {
           reverbSend={reverbSends.kick}
           delaySend={delaySends.kick}
           eq={eqGains.kick}
-          onMute={() => handleMute('kick')}
-          onSolo={() => handleSolo('kick')}
-          onVolumeChange={(v: number) => handleVolumeChange('kick', v)}
-
-          onReverbSendChange={(v: number) => handleReverbSendChange('kick', v)}
-          onDelaySendChange={(v: number) => handleDelaySendChange('kick', v)}
-          onEQChange={(band: 'low' | 'mid' | 'high', v: number) => handleEQChange('kick', band, v)}
-          extraControls={
-            <>
-              <div className="param-item">
-                <label>Tune</label>
-                <ScrollableSlider min={0.01} max={0.3} step={0.01} value={params.kick.tune} onChange={e => handleParamChange('kick', 'tune', Number(e.target.value))} />
-              </div>
-              <div className="param-item">
-                <label>Decay</label>
-                <ScrollableSlider min={0.1} max={2.0} step={0.1} value={params.kick.decay} onChange={e => handleParamChange('kick', 'decay', Number(e.target.value))} />
-              </div>
-              <div className="param-item">
-                <label>Dist</label>
-                <ScrollableSlider min={0} max={0.6} step={0.01} value={params.kick.distortion || 0} onChange={e => handleParamChange('kick', 'distortion', Number(e.target.value))} />
-              </div>
-            </>
-          }
+          onMute={handleMute}
+          onSolo={handleSolo}
+          onVolumeChange={handleVolumeChange}
+          onReverbSendChange={handleReverbSendChange}
+          onDelaySendChange={handleDelaySendChange}
+          onEQChange={handleEQChange}
+          extraControls={kickControls}
         >
-          <div className="steps-container">
-            {[0, 1, 2, 3].map(groupIdx => (
-              <div key={groupIdx} className="step-group">
-                {[0, 1, 2, 3].map(stepInGroup => {
-                  const stepIndex = groupIdx * 4 + stepInGroup;
-                  const isActive = grid.kick[stepIndex];
-                  const stepVel = velocities.kick[stepIndex];
-                  return (
-                    <Step
-                      key={stepIndex}
-                      isActive={isActive}
-                      isCurrent={currentStep === stepIndex && isPlaying}
-                      velocity={stepVel}
-                      onMouseDown={() => handleStepMouseDown('kick', stepIndex)}
-                      onMouseEnter={() => handleStepMouseEnter('kick', stepIndex)}
-                      onWheel={(e) => handleVelocityWheel(e, 'kick', stepIndex)}
-                    />
-                  );
-                })}
-              </div>
-            ))}
-          </div>
+          {kickSteps}
         </TrackRow>
         )}
 
@@ -1016,48 +1370,15 @@ function App() {
           reverbSend={reverbSends.snare}
           delaySend={delaySends.snare}
           eq={eqGains.snare}
-          onMute={() => handleMute('snare')}
-          onSolo={() => handleSolo('snare')}
-          onVolumeChange={(v: number) => handleVolumeChange('snare', v)}
-
-          onReverbSendChange={(v: number) => handleReverbSendChange('snare', v)}
-          onDelaySendChange={(v: number) => handleDelaySendChange('snare', v)}
-          onEQChange={(band: 'low' | 'mid' | 'high', v: number) => handleEQChange('snare', band, v)}
-          extraControls={
-            <>
-              <div className="param-item">
-                <label>Tone</label>
-                <ScrollableSlider min={400} max={6000} step={100} value={params.snare.tone} onChange={e => handleParamChange('snare', 'tone', Number(e.target.value))} />
-              </div>
-              <div className="param-item">
-                <label>Snappy</label>
-                <ScrollableSlider min={0.05} max={0.5} step={0.01} value={params.snare.snappy} onChange={e => handleParamChange('snare', 'snappy', Number(e.target.value))} />
-              </div>
-            </>
-          }
+          onMute={handleMute}
+          onSolo={handleSolo}
+          onVolumeChange={handleVolumeChange}
+          onReverbSendChange={handleReverbSendChange}
+          onDelaySendChange={handleDelaySendChange}
+          onEQChange={handleEQChange}
+          extraControls={snareControls}
         >
-          <div className="steps-container">
-            {[0, 1, 2, 3].map(groupIdx => (
-              <div key={groupIdx} className="step-group">
-                {[0, 1, 2, 3].map(stepInGroup => {
-                  const stepIndex = groupIdx * 4 + stepInGroup;
-                  const isActive = grid.snare[stepIndex];
-                  const stepVel = velocities.snare[stepIndex];
-                  return (
-                    <Step
-                      key={stepIndex}
-                      isActive={isActive}
-                      isCurrent={currentStep === stepIndex && isPlaying}
-                      velocity={stepVel}
-                      onMouseDown={() => handleStepMouseDown('snare', stepIndex)}
-                      onMouseEnter={() => handleStepMouseEnter('snare', stepIndex)}
-                      onWheel={(e) => handleVelocityWheel(e, 'snare', stepIndex)}
-                    />
-                  );
-                })}
-              </div>
-            ))}
-          </div>
+          {snareSteps}
         </TrackRow>
         )}
 
@@ -1072,48 +1393,15 @@ function App() {
           reverbSend={reverbSends.hihat}
           delaySend={delaySends.hihat}
           eq={eqGains.hihat}
-          onMute={() => handleMute('hihat')}
-          onSolo={() => handleSolo('hihat')}
-          onVolumeChange={(v: number) => handleVolumeChange('hihat', v)}
-
-          onReverbSendChange={(v: number) => handleReverbSendChange('hihat', v)}
-          onDelaySendChange={(v: number) => handleDelaySendChange('hihat', v)}
-          onEQChange={(band: 'low' | 'mid' | 'high', v: number) => handleEQChange('hihat', band, v)}
-          extraControls={
-            <>
-              <div className="param-item">
-                <label>Decay</label>
-                <ScrollableSlider min={0.05} max={1.0} step={0.01} value={params.hihat.decay} onChange={e => handleParamChange('hihat', 'decay', Number(e.target.value))} />
-              </div>
-              <div className="param-item">
-                <label>Tone</label>
-                <ScrollableSlider min={500} max={10000} step={100} value={params.hihat.tone} onChange={e => handleParamChange('hihat', 'tone', Number(e.target.value))} />
-              </div>
-            </>
-          }
+          onMute={handleMute}
+          onSolo={handleSolo}
+          onVolumeChange={handleVolumeChange}
+          onReverbSendChange={handleReverbSendChange}
+          onDelaySendChange={handleDelaySendChange}
+          onEQChange={handleEQChange}
+          extraControls={hihatControls}
         >
-          <div className="steps-container">
-            {[0, 1, 2, 3].map(groupIdx => (
-              <div key={groupIdx} className="step-group">
-                {[0, 1, 2, 3].map(stepInGroup => {
-                  const stepIndex = groupIdx * 4 + stepInGroup;
-                  const isActive = grid.hihat[stepIndex];
-                  const stepVel = velocities.hihat[stepIndex];
-                  return (
-                    <Step
-                      key={stepIndex}
-                      isActive={isActive}
-                      isCurrent={currentStep === stepIndex && isPlaying}
-                      velocity={stepVel}
-                      onMouseDown={() => handleStepMouseDown('hihat', stepIndex)}
-                      onMouseEnter={() => handleStepMouseEnter('hihat', stepIndex)}
-                      onWheel={(e) => handleVelocityWheel(e, 'hihat', stepIndex)}
-                    />
-                  );
-                })}
-              </div>
-            ))}
-          </div>
+          {hihatSteps}
         </TrackRow>
         )}
 
@@ -1128,48 +1416,15 @@ function App() {
           reverbSend={reverbSends.clap}
           delaySend={delaySends.clap}
           eq={eqGains.clap}
-          onMute={() => handleMute('clap')}
-          onSolo={() => handleSolo('clap')}
-          onVolumeChange={(v: number) => handleVolumeChange('clap', v)}
-
-          onReverbSendChange={(v: number) => handleReverbSendChange('clap', v)}
-          onDelaySendChange={(v: number) => handleDelaySendChange('clap', v)}
-          onEQChange={(band: 'low' | 'mid' | 'high', v: number) => handleEQChange('clap', band, v)}
-          extraControls={
-            <>
-              <div className="param-item">
-                <label>Decay</label>
-                <ScrollableSlider min={0.01} max={0.5} step={0.01} value={params.clap.decay} onChange={e => handleParamChange('clap', 'decay', Number(e.target.value))} />
-              </div>
-              <div className="param-item">
-                <label>Tone</label>
-                <ScrollableSlider min={500} max={4000} step={100} value={params.clap.tone} onChange={e => handleParamChange('clap', 'tone', Number(e.target.value))} />
-              </div>
-            </>
-          }
+          onMute={handleMute}
+          onSolo={handleSolo}
+          onVolumeChange={handleVolumeChange}
+          onReverbSendChange={handleReverbSendChange}
+          onDelaySendChange={handleDelaySendChange}
+          onEQChange={handleEQChange}
+          extraControls={clapControls}
         >
-          <div className="steps-container">
-            {[0, 1, 2, 3].map(groupIdx => (
-              <div key={groupIdx} className="step-group">
-                {[0, 1, 2, 3].map(stepInGroup => {
-                  const stepIndex = groupIdx * 4 + stepInGroup;
-                  const isActive = grid.clap[stepIndex];
-                  const stepVel = velocities.clap[stepIndex];
-                  return (
-                    <Step
-                      key={stepIndex}
-                      isActive={isActive}
-                      isCurrent={currentStep === stepIndex && isPlaying}
-                      velocity={stepVel}
-                      onMouseDown={() => handleStepMouseDown('clap', stepIndex)}
-                      onMouseEnter={() => handleStepMouseEnter('clap', stepIndex)}
-                      onWheel={(e) => handleVelocityWheel(e, 'clap', stepIndex)}
-                    />
-                  );
-                })}
-              </div>
-            ))}
-          </div>
+          {clapSteps}
         </TrackRow>
         )}
 
@@ -1185,76 +1440,15 @@ function App() {
           reverbSend={reverbSends.bass}
           delaySend={delaySends.bass}
           eq={eqGains.bass}
-          onMute={() => handleMute('bass')}
-          onSolo={() => handleSolo('bass')}
-          onVolumeChange={(v: number) => handleVolumeChange('bass', v)}
-
-          onReverbSendChange={(v: number) => handleReverbSendChange('bass', v)}
-          onDelaySendChange={(v: number) => handleDelaySendChange('bass', v)}
-          onEQChange={(band: 'low' | 'mid' | 'high', v: number) => handleEQChange('bass', band, v)}
-          extraControls={
-            <>
-              <div className="param-item">
-                <label>Cutoff</label>
-                <ScrollableSlider min={50} max={5000} step={10} value={params.bass.cutoff} onChange={e => handleParamChange('bass', 'cutoff', Number(e.target.value))} />
-              </div>
-              <div className="param-item">
-                <label>Res</label>
-                <ScrollableSlider min={0} max={20} step={0.1} value={params.bass.resonance} onChange={e => handleParamChange('bass', 'resonance', Number(e.target.value))} />
-              </div>
-              <div className="param-item">
-                <label>Env Mod</label>
-                <ScrollableSlider min={0} max={8} step={0.1} value={params.bass.envMod} onChange={e => handleParamChange('bass', 'envMod', Number(e.target.value))} />
-              </div>
-              <div className="param-item">
-                <label>Decay</label>
-                <ScrollableSlider min={0.1} max={2.0} step={0.1} value={params.bass.decay} onChange={e => handleParamChange('bass', 'decay', Number(e.target.value))} />
-              </div>
-            </>
-          }
+          onMute={handleMute}
+          onSolo={handleSolo}
+          onVolumeChange={handleVolumeChange}
+          onReverbSendChange={handleReverbSendChange}
+          onDelaySendChange={handleDelaySendChange}
+          onEQChange={handleEQChange}
+          extraControls={bassControls}
         >
-          {/* Combined Step + Pitch with quarter note grouping */}
-          <div className="bass-steps-container">
-            {[0, 1, 2, 3].map(groupIdx => (
-              <div key={groupIdx} className="step-group bass-group">
-                {[0, 1, 2, 3].map(stepInGroup => {
-                  const stepIndex = groupIdx * 4 + stepInGroup;
-                  const isActive = grid.bass[stepIndex];
-                  const stepVel = velocities.bass[stepIndex];
-                  return (
-                    <div key={stepIndex} className="bass-step-wrapper">
-                      <Step
-                        isActive={isActive}
-                        isCurrent={currentStep === stepIndex && isPlaying}
-                        velocity={stepVel}
-                        onMouseDown={() => handleStepMouseDown('bass', stepIndex)}
-                        onMouseEnter={() => handleStepMouseEnter('bass', stepIndex)}
-                        onWheel={(e) => handleVelocityWheel(e, 'bass', stepIndex)}
-                      />
-                      <ScrollableSelect 
-                        className="note-select"
-                        value={bassPitches[stepIndex]}
-                        onChange={(e) => handleBassPitchChange(stepIndex, Number(e.target.value))}
-                        onWheel={(e) => handleNoteWheel(e, stepIndex)}
-                      >
-                        {Array.from({ length: 37 }, (_, i) => {
-                          const midi = 60 - i;
-                          return <option key={midi} value={midi}>{midiToNoteName(midi)}</option>;
-                        })}
-                      </ScrollableSelect>
-                      <NoteStepper
-                        midi={bassPitches[stepIndex]}
-                        min={24}
-                        max={60}
-                        onChange={(val) => handleBassPitchChange(stepIndex, val)}
-                        buttonsOnly
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
+          {bassSteps}
         </TrackRow>
         )}
 
@@ -1270,92 +1464,15 @@ function App() {
           reverbSend={reverbSends.pad}
           delaySend={delaySends.pad}
           eq={eqGains.pad}
-          onMute={() => handleMute('pad')}
-          onSolo={() => handleSolo('pad')}
-          onVolumeChange={(v: number) => handleVolumeChange('pad', v)}
-
-          onReverbSendChange={(v: number) => handleReverbSendChange('pad', v)}
-          onDelaySendChange={(v: number) => handleDelaySendChange('pad', v)}
-          onEQChange={(band: 'low' | 'mid' | 'high', v: number) => handleEQChange('pad', band, v)}
-          extraControls={
-            <>
-              <div className="param-item">
-                <label>Attack</label>
-                <ScrollableSlider min={0.01} max={1.0} step={0.01} value={params.pad.attack} onChange={e => handleParamChange('pad', 'attack', Number(e.target.value))} />
-              </div>
-              <div className="param-item">
-                <label>Release</label>
-                <ScrollableSlider min={0.1} max={3.0} step={0.1} value={params.pad.release} onChange={e => handleParamChange('pad', 'release', Number(e.target.value))} />
-              </div>
-              <div className="param-item">
-                <label>Filter</label>
-                <ScrollableSlider min={100} max={8000} step={50} value={params.pad.cutoff} onChange={e => handleParamChange('pad', 'cutoff', Number(e.target.value))} />
-              </div>
-              <div className="param-item">
-                <label>Detune</label>
-                <ScrollableSlider min={0} max={30} step={1} value={params.pad.detune} onChange={e => handleParamChange('pad', 'detune', Number(e.target.value))} />
-              </div>
-              <div className="param-item">
-                <label>Distortion</label>
-                <ScrollableSlider min={0} max={1} step={0.01} value={params.pad.distortion} onChange={e => handleParamChange('pad', 'distortion', Number(e.target.value))} />
-              </div>
-            </>
-          }
+          onMute={handleMute}
+          onSolo={handleSolo}
+          onVolumeChange={handleVolumeChange}
+          onReverbSendChange={handleReverbSendChange}
+          onDelaySendChange={handleDelaySendChange}
+          onEQChange={handleEQChange}
+          extraControls={padControls}
         >
-          {/* Combined Step + Pitch + Voicing with quarter note grouping */}
-          <div className="pad-steps-container">
-            {[0, 1, 2, 3].map(groupIdx => (
-              <div key={groupIdx} className="step-group pad-group">
-                {[0, 1, 2, 3].map(stepInGroup => {
-                  const stepIndex = groupIdx * 4 + stepInGroup;
-                  const isActive = grid.pad[stepIndex];
-                  const stepVel = velocities.pad[stepIndex];
-                  return (
-                    <div key={stepIndex} className="pad-step-wrapper">
-                      <Step
-                        isActive={isActive}
-                        isCurrent={currentStep === stepIndex && isPlaying}
-                        velocity={stepVel}
-                        onMouseDown={() => handleStepMouseDown('pad', stepIndex)}
-                        onMouseEnter={() => handleStepMouseEnter('pad', stepIndex)}
-                        onWheel={(e) => handleVelocityWheel(e, 'pad', stepIndex)}
-                      />
-                      {/* Row 1: Note select */}
-                      <ScrollableSelect 
-                        className="note-select"
-                        value={padPitches[stepIndex]}
-                        onChange={(e) => handlePadPitchChange(stepIndex, Number(e.target.value))}
-                        onWheel={(e) => handlePadNoteWheel(e, stepIndex)}
-                      >
-                        {Array.from({ length: 37 }, (_, i) => {
-                          const midi = 72 - i;
-                          return <option key={midi} value={midi}>{midiToNoteName(midi)}</option>;
-                        })}
-                      </ScrollableSelect>
-                      {/* Row 2: Chord select */}
-                      <ScrollableSelect 
-                        className="voicing-select"
-                        value={padVoicings[stepIndex]}
-                        onChange={(e) => handlePadVoicingChange(stepIndex, e.target.value)}
-                      >
-                        {PAD_VOICING_OPTIONS.map(v => (
-                          <option key={v} value={v}>{v}</option>
-                        ))}
-                      </ScrollableSelect>
-                      {/* Row 3: +/- buttons */}
-                      <NoteStepper
-                        midi={padPitches[stepIndex]}
-                        min={36}
-                        max={72}
-                        onChange={(val) => handlePadPitchChange(stepIndex, val)}
-                        buttonsOnly
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
+          {padSteps}
         </TrackRow>
         )}
 
@@ -1371,63 +1488,15 @@ function App() {
           reverbSend={reverbSends.poly}
           delaySend={delaySends.poly}
           eq={eqGains.poly}
-          onMute={() => handleMute('poly')}
-          onSolo={() => handleSolo('poly')}
-          onVolumeChange={(v: number) => handleVolumeChange('poly', v)}
-          onReverbSendChange={(v: number) => handleReverbSendChange('poly', v)}
-          onDelaySendChange={(v: number) => handleDelaySendChange('poly', v)}
-          onEQChange={(band: 'low' | 'mid' | 'high', v: number) => handleEQChange('poly', band, v)}
-          extraControls={
-            <>
-              <div className="param-item">
-                <label>Wave</label>
-                <ScrollableSelect 
-                    value={params.poly.oscillator || 'square'} 
-                    onChange={(e) => {
-                        const val = e.target.value as any;
-                        handleParamChange('poly', 'oscillator', val);
-                        AudioEngine.setPolyOscillator(val);
-                    }}
-                    style={{ width: '60px' }}
-                >
-                    <option value="square">Sqr</option>
-                    <option value="sawtooth">Saw</option>
-                    <option value="triangle">Tri</option>
-                </ScrollableSelect>
-              </div>
-              <div className="param-item">
-                <label>Attack</label>
-                <ScrollableSlider min={0.01} max={1.0} step={0.01} value={params.poly.attack} onChange={e => handleParamChange('poly', 'attack', Number(e.target.value))} />
-              </div>
-              <div className="param-item">
-                <label>Decay</label>
-                <ScrollableSlider min={0.1} max={2.0} step={0.1} value={params.poly.decay} onChange={e => handleParamChange('poly', 'decay', Number(e.target.value))} />
-              </div>
-              <div className="param-item">
-                <label>Filter</label>
-                <ScrollableSlider min={100} max={5000} step={50} value={params.poly.filter} onChange={e => handleParamChange('poly', 'filter', Number(e.target.value))} />
-              </div>
-              <div className="param-item">
-                <label>Sus</label>
-                <ScrollableSlider min={0} max={1} step={0.01} value={params.poly.sustain} onChange={e => handleParamChange('poly', 'sustain', Number(e.target.value))} />
-              </div>
-              <div className="param-item">
-                <label>Rel</label>
-                <ScrollableSlider min={0.1} max={3.0} step={0.1} value={params.poly.release} onChange={e => handleParamChange('poly', 'release', Number(e.target.value))} />
-              </div>
-            </>
-          }
+          onMute={handleMute}
+          onSolo={handleSolo}
+          onVolumeChange={handleVolumeChange}
+          onReverbSendChange={handleReverbSendChange}
+          onDelaySendChange={handleDelaySendChange}
+          onEQChange={handleEQChange}
+          extraControls={polyControls}
         >
-          {/* Piano Roll Integration */}
-          <div style={{ padding: '4px 0' }}>
-            <PianoRoll 
-                currentStep={isPlaying ? currentStep : -1}
-                steps={polyNotes}
-                onChange={handlePolyNotesChange}
-                minNote={48} // C3
-                maxNote={84} // C6
-            />
-          </div>
+          {polySteps}
         </TrackRow>
         )}
 
@@ -1439,7 +1508,7 @@ function App() {
       
       {showImportModal && pendingImport && (
         <ImportSelectionModal
-          projectFile={pendingImport}
+          projectFile={pendingImport!}
           currentScenes={scenes}
           onConfirm={handleConfirmImport}
           onCancel={handleCancelImport}

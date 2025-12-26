@@ -330,6 +330,17 @@ let currentBassPitches: number[] = new Array(16).fill(36);
 // Keep track of per-step pad pitches (MIDI note numbers, default C3=48) and voicings
 let currentPadPitches: number[] = new Array(16).fill(48);
 let currentPadVoicings: PadVoicing[] = new Array(16).fill('single');
+// Cache for the calculated note names to avoid doing math in the hot loop
+let currentPadNoteNames: string[][] = new Array(16).fill([]);
+
+// Initialize cache
+const updatePadCache = () => {
+    for (let i = 0; i < 16; i++) {
+        currentPadNoteNames[i] = getChordNotes(currentPadPitches[i], currentPadVoicings[i]);
+    }
+};
+// Initial calculation
+updatePadCache();
 
 // Keep track of per-step poly notes (array of MIDI notes per step)
 let currentPolyNotes: number[][] = new Array(16).fill([]);
@@ -396,7 +407,8 @@ const loop = new Tone.Sequence(
     }
 
     if (shouldPlay('pad') && currentGrid.pad[step]) {
-      const chordNotes = getChordNotes(currentPadPitches[step], currentPadVoicings[step]);
+      // Use cached note names
+      const chordNotes = currentPadNoteNames[step];
       triggerPadVoices(chordNotes, '8n', time, getVel('pad'));
     }
 
@@ -434,6 +446,7 @@ export const AudioEngine = {
 
   updatePadPitches: (pitches: number[]) => {
     currentPadPitches = pitches;
+    updatePadCache();
   },
 
   updateVelocities: (velocities: Record<Instrument, number[]>) => {
@@ -442,6 +455,7 @@ export const AudioEngine = {
 
   updatePadVoicings: (voicings: string[]) => {
     currentPadVoicings = voicings as PadVoicing[];
+    updatePadCache();
   },
 
   updatePolyNotes: (notes: number[][]) => {

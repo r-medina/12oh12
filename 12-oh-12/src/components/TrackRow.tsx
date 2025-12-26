@@ -14,12 +14,12 @@ interface TrackRowProps {
   delaySend: number;
   eq: { low: number; mid: number; high: number };
   
-  onMute: () => void;
-  onSolo: () => void;
-  onVolumeChange: (val: number) => void;
-  onReverbSendChange: (val: number) => void;
-  onDelaySendChange: (val: number) => void;
-  onEQChange: (band: 'low' | 'mid' | 'high', val: number) => void;
+  onMute: (inst: Instrument) => void;
+  onSolo: (inst: Instrument) => void;
+  onVolumeChange: (inst: Instrument, val: number) => void;
+  onReverbSendChange: (inst: Instrument, val: number) => void;
+  onDelaySendChange: (inst: Instrument, val: number) => void;
+  onEQChange: (inst: Instrument, band: 'low' | 'mid' | 'high', val: number) => void;
   
   extraControls?: React.ReactNode;
   children: React.ReactNode; // For the steps grid
@@ -28,8 +28,9 @@ interface TrackRowProps {
   className?: string;
 }
 
-export const TrackRow: React.FC<TrackRowProps> = ({
+export const TrackRow = React.memo<TrackRowProps>(({
   label,
+  instrument,
   mute,
   solo,
   volume,
@@ -55,8 +56,8 @@ export const TrackRow: React.FC<TrackRowProps> = ({
           <div className="track-identity">
             <div className="track-label">{label}</div>
             <div className="mute-solo-group">
-              <button className={`ms-btn ${mute ? 'active' : ''}`} onClick={onMute}>M</button>
-              <button className={`ms-btn ${solo ? 'active' : ''}`} onClick={onSolo}>S</button>
+              <button className={`ms-btn ${mute ? 'active' : ''}`} onClick={() => onMute(instrument)}>M</button>
+              <button className={`ms-btn ${solo ? 'active' : ''}`} onClick={() => onSolo(instrument)}>S</button>
             </div>
           </div>
           <div className="track-params">
@@ -80,7 +81,7 @@ export const TrackRow: React.FC<TrackRowProps> = ({
             max={0}
             step={1}
             value={volume} 
-            onChange={e => onVolumeChange(Number(e.target.value))} 
+            onChange={e => onVolumeChange(instrument, Number(e.target.value))} 
           />
           <label className="gain-label">Vol {volume}</label>
         </div>
@@ -89,17 +90,17 @@ export const TrackRow: React.FC<TrackRowProps> = ({
         <div className="track-eq-sends-column">
           {/* EQ - Top */}
           <div className="eq-row">
-            <Knob label="Lo" min={-12} max={12} value={eq.low} onChange={v => onEQChange('low', v)} onDoubleClick={() => onEQChange('low', 0)} size={28} />
-            <Knob label="Mid" min={-12} max={12} value={eq.mid} onChange={v => onEQChange('mid', v)} onDoubleClick={() => onEQChange('mid', 0)} size={28} />
-            <Knob label="Hi" min={-12} max={12} value={eq.high} onChange={v => onEQChange('high', v)} onDoubleClick={() => onEQChange('high', 0)} size={28} />
+            <Knob label="Lo" min={-12} max={12} value={eq.low} onChange={v => onEQChange(instrument, 'low', v)} onDoubleClick={() => onEQChange(instrument, 'low', 0)} size={28} />
+            <Knob label="Mid" min={-12} max={12} value={eq.mid} onChange={v => onEQChange(instrument, 'mid', v)} onDoubleClick={() => onEQChange(instrument, 'mid', 0)} size={28} />
+            <Knob label="Hi" min={-12} max={12} value={eq.high} onChange={v => onEQChange(instrument, 'high', v)} onDoubleClick={() => onEQChange(instrument, 'high', 0)} size={28} />
           </div>
           {/* Sends - Bottom, centered */}
           <div className="sends-row">
-            <Knob label="REV" min={-60} max={0} value={reverbSend} onChange={onReverbSendChange} onDoubleClick={() => onReverbSendChange(-60)} size={32} />
-            <Knob label="DLY" min={-60} max={0} value={delaySend} onChange={onDelaySendChange} onDoubleClick={() => onDelaySendChange(-60)} size={32} />
+            <Knob label="REV" min={-60} max={0} value={reverbSend} onChange={v => onReverbSendChange(instrument, v)} onDoubleClick={() => onReverbSendChange(instrument, -60)} size={32} />
+            <Knob label="DLY" min={-60} max={0} value={delaySend} onChange={v => onDelaySendChange(instrument, v)} onDoubleClick={() => onDelaySendChange(instrument, -60)} size={32} />
           </div>
         </div>
       </div>
     </div>
   );
-};
+});
