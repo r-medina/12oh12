@@ -959,17 +959,20 @@ h1 {
 }
 
 .step.current {
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.8), 0 0 10px rgba(255, 255, 255, 0.3);
-  background-color: rgba(255, 255, 255, 0.1);
-  border-color: #fff;
+  border-left: 3px solid rgba(255, 255, 255, 0.8);
+  background-color: transparent;
 }
 
 .step.active.current {
   background-color: var(--accent-primary);
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 16px rgba(255, 87, 34, 0.8);
-  transform: scale(1.05); /* Slight pop */
-  border-color: #fff;
+  border-left: 3px solid #fff;
 }
+
+.step.adjusting {
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+  transform: scale(1.05);
+}
+
 
 /* ============================================
    Bass 303 Per-Step Pitch
@@ -1780,6 +1783,62 @@ input[type="range"]::-moz-range-thumb {
 /* ============================================
    Phone Portrait - 4x4 Step Grid Layout
    ============================================ */
+/* ============================================
+   Landscape Mode (Mobile/Tablet)
+   ============================================ */
+@media (max-width: 1024px) and (orientation: landscape) {
+  /* 2-column grid for sequencer steps in landscape */
+  .steps-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    overflow: visible;
+  }
+
+  .step-group {
+    display: flex;
+    justify-content: center;
+    gap: var(--gap);
+    background: var(--bg-tertiary);
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* Bass and Pad also get 2-column grid */
+  .bass-steps-container,
+  .pad-steps-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    overflow: visible;
+  }
+
+  .step-group.bass-group,
+  .step-group.pad-group {
+    display: flex;
+    justify-content: center;
+    gap: var(--gap);
+    padding: 6px 10px;
+  }
+
+  /* Slightly larger touch targets for landscape */
+  .step {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+  }
+
+  .bass-step-wrapper .step,
+  .pad-step-wrapper .step {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* ============================================
+   Portrait Mode (Mobile)
+   ============================================ */
 @media (max-width: 600px) {
   /* Override scrollable steps to use 4x4 grid */
   .track-grid-row {
@@ -2366,13 +2425,13 @@ input[type="range"]:hover + .param-tooltip {
 }
 
 .piano-cell.current {
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.1);
+  border-left: 3px solid rgba(255, 255, 255, 0.8);
+  background: transparent;
 }
 
 .piano-cell.active.current {
-  background: #fff;
-  border-color: #fff;
+  background: var(--accent-primary);
+  border-left: 3px solid #fff;
 }
 
 /* Day Mode Grid Visibility Overrides */

@@ -40,6 +40,8 @@ export const SceneSelector: React.FC<SceneSelectorProps> = ({
   });
 
   const menuRef = useRef<HTMLDivElement>(null);
+  const longPressTimer = useRef<number | null>(null);
+  const longPressThreshold = 500; // ms
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -78,6 +80,35 @@ export const SceneSelector: React.FC<SceneSelectorProps> = ({
       y: e.pageY,
       sceneIndex: index,
     });
+  };
+
+  const handleTouchStart = (e: React.TouchEvent, index: number) => {
+    // Start long-press timer
+    longPressTimer.current = window.setTimeout(() => {
+      const touch = e.touches[0];
+      setContextMenu({
+        visible: true,
+        x: touch.pageX,
+        y: touch.pageY,
+        sceneIndex: index,
+      });
+    }, longPressThreshold);
+  };
+
+  const handleTouchEnd = () => {
+    // Cancel long-press timer if touch ends
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleTouchMove = () => {
+    // Cancel long-press if user moves finger
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
   };
 
   const handleAction = (action: 'copy' | 'paste' | 'clear') => {
@@ -129,7 +160,10 @@ export const SceneSelector: React.FC<SceneSelectorProps> = ({
             className={`scene-btn ${activeIndex === index ? 'active' : ''} ${hasData(scenes[index]) ? 'has-data' : ''}`}
             onClick={() => onSceneSelect(index)}
             onContextMenu={(e) => handleContextMenu(e, index)}
-            title={`Scene ${label}${hasData(scenes[index]) ? ' (has data)' : ''}\nRight-click for options`}
+            onTouchStart={(e) => handleTouchStart(e, index)}
+            onTouchEnd={handleTouchEnd}
+            onTouchMove={handleTouchMove}
+            title={`Scene ${label}${hasData(scenes[index]) ? ' (has data)' : ''}\nRight-click or long-press for options`}
           >
             <span className="scene-btn-label">{label}</span>
             {hasData(scenes[index]) && <span className="scene-indicator">•</span>}
