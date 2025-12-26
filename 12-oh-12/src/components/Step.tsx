@@ -54,20 +54,23 @@ export const Step: React.FC<StepProps> = ({
     e.preventDefault(); // Prevent scrolling while adjusting velocity
     
     const touch = e.touches[0];
-    const deltaY = touchStartY.current - touch.clientY; // Inverted: swipe up = increase
-    const velocityChange = Math.round(deltaY / 2); // 2px = 1 velocity unit
+    // Calculate total delta from start position (not from last position)
+    // Positive deltaY = swipe down, negative = swipe up
+    const deltaY = touch.clientY - touchStartY.current;
+    // Increase sensitivity: 1px = 1 velocity unit
+    const velocityChange = Math.round(deltaY);
     
     // Create a synthetic wheel event
+    // The wheel handler uses: positive deltaY = increase (macOS natural scrolling)
+    // Our deltaY: positive = swipe down, negative = swipe up
+    // So swipe down (positive) should increase velocity (positive deltaY in wheel event)
     const syntheticEvent = new WheelEvent('wheel', {
-      deltaY: -velocityChange, // Negative because we want swipe up to increase
+      deltaY: velocityChange,
       bubbles: true,
       cancelable: true,
     });
     
     onWheel(syntheticEvent);
-    
-    // Reset start position for continuous adjustment
-    touchStartY.current = touch.clientY;
   }, [isActive, isTouchAdjusting, onWheel]);
 
   const handleTouchEnd = useCallback(() => {
