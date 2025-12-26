@@ -11,8 +11,9 @@ import { Step } from './components/Step';
 import { ScrollableSelect } from './components/ScrollableSelect';
 import { PianoRoll } from './components/PianoRoll';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { loadScenes, saveScenes, createEmptyScene, downloadScene, importScene } from './utils/storage';
-import type { Instrument, Scene, InstrumentParams, ProModeParams } from './types';
+import { loadScenes, saveScenes, createEmptyScene, downloadScene, importScene, downloadProject, parseProjectFile } from './utils/storage';
+import { ImportSelectionModal } from './components/ImportSelectionModal';
+import type { Instrument, Scene, InstrumentParams, ProModeParams, ProjectFile } from './types';
 
 // Initial Pattern: Basic House Beat
 const INITIAL_GRID: Record<Instrument, boolean[]> = {
@@ -145,6 +146,8 @@ function App() {
   const [activeSceneIndex, setActiveSceneIndex] = useState(0);
   const [copiedScene, setCopiedScene] = useState<Scene | null>(null);
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
+  const [pendingImport, setPendingImport] = useState<ProjectFile | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // Theme effect
   useLayoutEffect(() => {
@@ -689,6 +692,10 @@ function App() {
     downloadScene(scenes[activeSceneIndex]);
   }, [scenes, activeSceneIndex]);
 
+  const handleExportAll = useCallback(() => {
+    downloadProject(scenes);
+  }, [scenes]);
+
   const handleRandomizeActiveScene = useCallback(() => {
     const instruments: Instrument[] = ['kick', 'snare', 'hihat', 'clap', 'bass', 'pad'];
     const newGrid = { ...grid };
@@ -734,6 +741,16 @@ function App() {
       const reader = new FileReader();
       reader.onload = (event) => {
         const json = event.target?.result as string;
+        
+        // Try parsing as project file first
+        const projectFile = parseProjectFile(json);
+        if (projectFile) {
+          setPendingImport(projectFile);
+          setShowImportModal(true);
+          return;
+        }
+        
+        // Fall back to single scene import
         const scene = importScene(json);
         if (scene) {
           const newScenes = [...scenes];
@@ -742,13 +759,40 @@ function App() {
           saveScenes(newScenes);
           loadSceneState(scene);
         } else {
-          alert('Failed to import scene. Invalid file format.');
+          alert('Failed to import. Invalid file format.');
         }
       };
       reader.readAsText(file);
     };
     input.click();
   }, [scenes, activeSceneIndex, loadSceneState]);
+
+  const handleConfirmImport = useCallback((selectedIndices: number[]) => {
+    if (!pendingImport) return;
+    
+    const newScenes = [...scenes];
+    selectedIndices.forEach(idx => {
+      if (idx < pendingImport.scenes.length) {
+        newScenes[idx] = pendingImport.scenes[idx];
+      }
+    });
+    
+    setScenes(newScenes);
+    saveScenes(newScenes);
+    
+    // If active scene was imported, reload it
+    if (selectedIndices.includes(activeSceneIndex)) {
+      loadSceneState(newScenes[activeSceneIndex]);
+    }
+    
+    setShowImportModal(false);
+    setPendingImport(null);
+  }, [pendingImport, scenes, activeSceneIndex, loadSceneState]);
+
+  const handleCancelImport = useCallback(() => {
+    setShowImportModal(false);
+    setPendingImport(null);
+  }, []);
 
   // Keyboard shortcuts
   const instruments: Instrument[] = ['kick', 'snare', 'hihat', 'clap', 'bass', 'pad'];
@@ -888,6 +932,7 @@ function App() {
         onRandomizeActive={handleRandomizeActiveScene}
         onImport={handleImport}
         onExport={handleExport}
+        onExportAll={handleExportAll}
       />
 
       {proMode && (
@@ -1391,6 +1436,15 @@ function App() {
       <Visualizer theme={theme} isPlaying={isPlaying} />
 
       <ShortcutHelp isOpen={showShortcutHelp} onClose={() => setShowShortcutHelp(false)} />
+      
+      {showImportModal && pendingImport && (
+        <ImportSelectionModal
+          projectFile={pendingImport}
+          currentScenes={scenes}
+          onConfirm={handleConfirmImport}
+          onCancel={handleCancelImport}
+        />
+      )}
     </div>
   );
 }

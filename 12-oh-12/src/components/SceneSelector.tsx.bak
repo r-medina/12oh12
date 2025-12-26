@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import type { Scene } from '../types';
 
 interface SceneSelectorProps {
@@ -27,44 +27,7 @@ export const SceneSelector: React.FC<SceneSelectorProps> = ({
   onExportAll,
 }) => {
   const sceneLabels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-  const [contextMenu, setContextMenu] = useState<{
-    visible: boolean;
-    x: number;
-    y: number;
-    sceneIndex: number | null;
-  }>({
-    visible: false,
-    x: 0,
-    y: 0,
-    sceneIndex: null,
-  });
-
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setContextMenu(prev => ({ ...prev, visible: false }));
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setContextMenu(prev => ({ ...prev, visible: false }));
-      }
-    };
-
-    if (contextMenu.visible) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleKeyDown);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [contextMenu.visible]);
-
+  
   const hasData = (scene: Scene): boolean => {
     // Check if scene has any active steps
     return Object.values(scene.grid).some(pattern => pattern.some(step => step));
@@ -72,31 +35,19 @@ export const SceneSelector: React.FC<SceneSelectorProps> = ({
 
   const handleContextMenu = (e: React.MouseEvent, index: number) => {
     e.preventDefault();
-    setContextMenu({
-      visible: true,
-      x: e.pageX,
-      y: e.pageY,
-      sceneIndex: index,
-    });
-  };
-
-  const handleAction = (action: 'copy' | 'paste' | 'clear') => {
-    if (contextMenu.sceneIndex === null) return;
+    // For now, just show a simple context menu using browser prompt
+    const action = window.prompt(
+      `Scene ${sceneLabels[index]} Actions:\n1 - Copy\n2 - Paste\n3 - Clear\n\nEnter number:`,
+      '1'
+    );
     
-    switch (action) {
-      case 'copy':
-        onSceneCopy(contextMenu.sceneIndex);
-        break;
-      case 'paste':
-        onScenePaste(contextMenu.sceneIndex);
-        break;
-      case 'clear':
-        if (window.confirm(`Clear Scene ${sceneLabels[contextMenu.sceneIndex]}?`)) {
-          onSceneClear(contextMenu.sceneIndex);
-        }
-        break;
+    if (action === '1') onSceneCopy(index);
+    else if (action === '2') onScenePaste(index);
+    else if (action === '3') {
+      if (window.confirm(`Clear Scene ${sceneLabels[index]}?`)) {
+        onSceneClear(index);
+      }
     }
-    setContextMenu(prev => ({ ...prev, visible: false }));
   };
 
   return (
@@ -136,25 +87,6 @@ export const SceneSelector: React.FC<SceneSelectorProps> = ({
           </button>
         ))}
       </div>
-
-      {contextMenu.visible && (
-        <div 
-          className="context-menu" 
-          ref={menuRef}
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-        >
-          <div className="context-menu-item" onClick={() => handleAction('copy')}>
-            <span>Copy</span>
-          </div>
-          <div className="context-menu-item" onClick={() => handleAction('paste')}>
-            <span>Paste</span>
-          </div>
-          <div className="context-menu-divider" />
-          <div className="context-menu-item" onClick={() => handleAction('clear')}>
-            <span>Clear</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

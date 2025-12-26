@@ -112,3 +112,12 @@ export interface SceneBank {
   scenes: Scene[];
   activeSceneIndex: number;
 }
+
+/**
+ * Project file format for exporting/importing all scenes at once.
+ */
+export interface ProjectFile {
+  version: number;
+  timestamp: number;
+  scenes: Scene[];
+}

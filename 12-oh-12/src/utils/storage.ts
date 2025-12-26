@@ -237,11 +237,76 @@ export const downloadScene = (scene: Scene): void => {
   const json = exportScene(scene);
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
+  
+  // Format: 12oh12_scene_Name_2025-12-25.json
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const sanitizedName = scene.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  const filename = `12oh12_scene_${sanitizedName}_${dateStr}.json`;
+
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${scene.name.replace(/\s+/g, '_')}.json`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+};
+
+/**
+ * Export all scenes as a project file JSON string
+ */
+export const exportProject = (scenes: Scene[]): string => {
+  const project: import('../types').ProjectFile = {
+    version: 1,
+    timestamp: Date.now(),
+    scenes
+  };
+  return JSON.stringify(project, null, 2);
+};
+
+/**
+ * Download all scenes as a project file
+ */
+export const downloadProject = (scenes: Scene[]): void => {
+  const json = exportProject(scenes);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  
+  // Format: 12oh12_project_2025-12-25.json
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const filename = `12oh12_project_${dateStr}.json`;
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+/**
+ * Parse and validate a project file from JSON string.
+ * Returns null if it's not a valid project file (might be a single scene).
+ */
+export const parseProjectFile = (jsonString: string): import('../types').ProjectFile | null => {
+  try {
+    const parsed = JSON.parse(jsonString);
+    // Check if it's a project file (has version and scenes array)
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      typeof parsed.version === 'number' &&
+      Array.isArray(parsed.scenes)
+    ) {
+      return {
+        version: parsed.version,
+        timestamp: parsed.timestamp || Date.now(),
+        scenes: parsed.scenes.map((s: any) => migrateScene(s))
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
 };
