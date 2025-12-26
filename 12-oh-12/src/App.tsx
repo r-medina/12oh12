@@ -544,6 +544,8 @@ function App() {
 
   // Save current state to active scene whenever it changes  
   useEffect(() => {
+    // skip saving if we're in the middle of a scene change or something? 
+    // Usually, we want to save whenever the user changes a parameter.
     const currentScene: Scene = {
       name: scenes[activeSceneIndex].name,
       grid,
@@ -564,11 +566,18 @@ function App() {
       proModeParams
     };
 
-    const newScenes = [...scenes];
-    newScenes[activeSceneIndex] = currentScene;
-    setScenes(newScenes);
-    saveScenes(newScenes);
-  }, [grid, bassPitches, padPitches, padVoicings, polyNotes, volumes, velocities, reverbSends, delaySends, eqGains, params, mutes, solos, bpm, swing, proModeParams]);
+    // Only save if the current state is different from what's in the scenes array
+    // to avoid unnecessary updates and potential race conditions during scene load
+    const existingScene = scenes[activeSceneIndex];
+    const hasChanged = JSON.stringify(currentScene) !== JSON.stringify(existingScene);
+
+    if (hasChanged) {
+      const newScenes = [...scenes];
+      newScenes[activeSceneIndex] = currentScene;
+      setScenes(newScenes);
+      saveScenes(newScenes);
+    }
+  }, [activeSceneIndex, grid, bassPitches, padPitches, padVoicings, polyNotes, volumes, velocities, reverbSends, delaySends, eqGains, params, mutes, solos, bpm, swing, proModeParams]);
 
   // Scene Management Handlers
   const loadSceneState = useCallback((scene: Scene) => {
@@ -576,13 +585,10 @@ function App() {
     setBassPitches(scene.bassPitches);
     setPadPitches(scene.padPitches);
     setPadVoicings(scene.padVoicings);
-    setPadPitches(scene.padPitches);
-    setPadVoicings(scene.padVoicings);
     setPolyNotes(scene.polyNotes || new Array(16).fill([]));
     setVolumes(scene.volumes);
     setReverbSends(scene.reverbSends);
     setDelaySends(scene.delaySends);
-
     setEqGains(scene.eqGains);
     setParams(scene.params || INITIAL_PARAMS);
     setMutes(scene.mutes);
@@ -629,6 +635,7 @@ function App() {
     const p = scene.params || INITIAL_PARAMS;
     AudioEngine.setKickPitchDecay(p.kick.tune);
     AudioEngine.setKickDecay(p.kick.decay);
+    AudioEngine.setKickDistortion(p.kick.distortion || 0);
     AudioEngine.setSnareTone(p.snare.tone);
     AudioEngine.setSnareDecay(p.snare.snappy);
     AudioEngine.setHiHatDecay(p.hihat.decay);
@@ -642,8 +649,6 @@ function App() {
     AudioEngine.setPadAttack(p.pad.attack);
     AudioEngine.setPadRelease(p.pad.release);
     AudioEngine.setPadFilterCutoff(p.pad.cutoff);
-    AudioEngine.setPadDetune(p.pad.detune);
-    AudioEngine.setPadDetune(p.pad.detune);
     AudioEngine.setPadDetune(p.pad.detune);
     AudioEngine.setPadDistortion(p.pad.distortion);
 

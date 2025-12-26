@@ -637,44 +637,53 @@ export const AudioEngine = {
 
   // Volume
   setVolume: (inst: Instrument, val: number) => {
-    if (inst === 'kick') kickVol.volume.value = val;
-    if (inst === 'snare') snareVol.volume.value = val;
-    if (inst === 'hihat') hihatVol.volume.value = val;
-    if (inst === 'clap') clapVol.volume.value = val;
-    if (inst === 'bass') bassVol.volume.value = val;
-    if (inst === 'pad') padVol.volume.value = val;
-    if (inst === 'poly') polyVol.volume.value = val;
+    const volMap: Partial<Record<Instrument, Tone.Volume>> = {
+      kick: kickVol,
+      snare: snareVol,
+      hihat: hihatVol,
+      clap: clapVol,
+      bass: bassVol,
+      pad: padVol,
+      poly: polyVol
+    };
+    const volNode = volMap[inst];
+    if (volNode) {
+      volNode.volume.value = val;
+    }
   },
 
   // Rev/Delay Sends
   setReverbSend: (inst: Instrument, val: number) => {
-     // val is in dB, we can set gain.value using Tone.dbToGain or similar if needed,
-     // but Tone.Gain.gain is 0-1 linear usually, OR Tone.Gain has a 'gain' param which is signal-rate.
-     // However, Tone.Gain does NOT wrap AudioParam in decibels by default. 
-     // We can use Tone.Gain(0, "decibels") or just set volume.value if it was a Volume node.
-     // I initialized them as Gain(0), which means 0 linear gain (silent). 
-     // Let's assume input val is decibels like the implementation plan said (-60 to 0).
-     // We need to convert db to gain.
-     const linear = val <= -60 ? 0 : Tone.dbToGain(val);
-     
-     if (inst === 'kick') kickReverbSend.gain.rampTo(linear, 0.1);
-     if (inst === 'snare') snareReverbSend.gain.rampTo(linear, 0.1);
-     if (inst === 'hihat') hihatReverbSend.gain.rampTo(linear, 0.1);
-     if (inst === 'clap') clapReverbSend.gain.rampTo(linear, 0.1);
-     if (inst === 'bass') bassReverbSend.gain.rampTo(linear, 0.1);
-     if (inst === 'pad') padReverbSend.gain.rampTo(linear, 0.1);
-     if (inst === 'poly') polyReverbSend.gain.rampTo(linear, 0.1);
+     const sendMap: Partial<Record<Instrument, Tone.Gain>> = {
+       kick: kickReverbSend,
+       snare: snareReverbSend,
+       hihat: hihatReverbSend,
+       clap: clapReverbSend,
+       bass: bassReverbSend,
+       pad: padReverbSend,
+       poly: polyReverbSend
+     };
+     const sendNode = sendMap[inst];
+     if (!sendNode) return;
+
+     const linear = (typeof val !== 'number' || isNaN(val) || val <= -60) ? 0 : Tone.dbToGain(val);
+     sendNode.gain.rampTo(linear, 0.05);
   },
   setDelaySend: (inst: Instrument, val: number) => {
-     const linear = val <= -60 ? 0 : Tone.dbToGain(val);
-     
-     if (inst === 'kick') kickDelaySend.gain.rampTo(linear, 0.1);
-     if (inst === 'snare') snareDelaySend.gain.rampTo(linear, 0.1);
-     if (inst === 'hihat') hihatDelaySend.gain.rampTo(linear, 0.1);
-     if (inst === 'clap') clapDelaySend.gain.rampTo(linear, 0.1);
-     if (inst === 'bass') bassDelaySend.gain.rampTo(linear, 0.1);
-     if (inst === 'pad') padDelaySend.gain.rampTo(linear, 0.1);
-     if (inst === 'poly') polyDelaySend.gain.rampTo(linear, 0.1);
+     const sendMap: Partial<Record<Instrument, Tone.Gain>> = {
+       kick: kickDelaySend,
+       snare: snareDelaySend,
+       hihat: hihatDelaySend,
+       clap: clapDelaySend,
+       bass: bassDelaySend,
+       pad: padDelaySend,
+       poly: polyDelaySend
+     };
+     const sendNode = sendMap[inst];
+     if (!sendNode) return;
+
+     const linear = (typeof val !== 'number' || isNaN(val) || val <= -60) ? 0 : Tone.dbToGain(val);
+     sendNode.gain.rampTo(linear, 0.05);
   },
 
   // Visualizer
