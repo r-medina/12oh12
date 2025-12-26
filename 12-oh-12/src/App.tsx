@@ -544,40 +544,43 @@ function App() {
 
   // Save current state to active scene whenever it changes  
   useEffect(() => {
-    // skip saving if we're in the middle of a scene change or something? 
-    // Usually, we want to save whenever the user changes a parameter.
-    const currentScene: Scene = {
-      name: scenes[activeSceneIndex].name,
-      grid,
-      bassPitches,
-      padPitches,
-      padVoicings,
-      polyNotes,
-      volumes,
-      velocities,
-      reverbSends,
-      delaySends,
-      eqGains,
-      params,
-      mutes,
-      solos,
-      bpm,
-      swing,
-      proModeParams
-    };
+    // Debounce save to prevent jank during rapid parameter changes (knob twists)
+    const timerId = setTimeout(() => {
+      const currentScene: Scene = {
+        name: scenes[activeSceneIndex].name,
+        grid,
+        bassPitches,
+        padPitches,
+        padVoicings,
+        polyNotes,
+        volumes,
+        velocities,
+        reverbSends,
+        delaySends,
+        eqGains,
+        params,
+        mutes,
+        solos,
+        bpm,
+        swing,
+        proModeParams
+      };
 
-    // Only save if the current state is different from what's in the scenes array
-    // to avoid unnecessary updates and potential race conditions during scene load
-    const existingScene = scenes[activeSceneIndex];
-    const hasChanged = JSON.stringify(currentScene) !== JSON.stringify(existingScene);
+      // Only save if the current state is different from what's in the scenes array
+      // to avoid unnecessary updates and potential race conditions during scene load
+      const existingScene = scenes[activeSceneIndex];
+      const hasChanged = JSON.stringify(currentScene) !== JSON.stringify(existingScene);
 
-    if (hasChanged) {
-      const newScenes = [...scenes];
-      newScenes[activeSceneIndex] = currentScene;
-      setScenes(newScenes);
-      saveScenes(newScenes);
-    }
-  }, [activeSceneIndex, grid, bassPitches, padPitches, padVoicings, polyNotes, volumes, velocities, reverbSends, delaySends, eqGains, params, mutes, solos, bpm, swing, proModeParams]);
+      if (hasChanged) {
+        const newScenes = [...scenes];
+        newScenes[activeSceneIndex] = currentScene;
+        setScenes(newScenes);
+        saveScenes(newScenes);
+      }
+    }, 1000); // Wait 1 second after last change before saving
+
+    return () => clearTimeout(timerId);
+  }, [activeSceneIndex, grid, bassPitches, padPitches, padVoicings, polyNotes, volumes, velocities, reverbSends, delaySends, eqGains, params, mutes, solos, bpm, swing, proModeParams, scenes]);
 
   // Scene Management Handlers
   const loadSceneState = useCallback((scene: Scene) => {

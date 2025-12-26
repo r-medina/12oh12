@@ -97,7 +97,33 @@ export function Visualizer({ theme, isPlaying }: VisualizerProps) {
       return `rgb(${currR}, ${currG}, ${currB})`;
     };
 
-    // Peak Hold State
+    // Optimization: Cache row colors since they don't change per frame
+    // This avoids 512+ math operations per frame
+    const rowColorCache: string[] = [];
+    for (let r = 0; r < rows; r++) {
+        rowColorCache[r] = getPixelColor(r, false);
+    }
+
+    // Optimization: Pre-calculate grid coordinates
+    // [col][row] -> {x, y}
+    const gridCoords: {x: number, y: number}[][] = [];
+    for (let c = 0; c < cols; c++) {
+      gridCoords[c] = [];
+      for (let r = 0; r < rows; r++) {
+        const y = height - ((r + 1) * (pixelSize + gap));
+        const x = gap + c * (pixelSize + gap);
+        gridCoords[c][r] = { x, y };
+      }
+    }
+    
+    // Optimization: Pre-calculate Master Meter coordinates
+    const masterXStart = (cols + 1) * (pixelSize + gap) + gap;
+    const masterCoords: {x: number, y: number}[] = [];
+    for(let r=0; r<rows; r++){
+        const y = height - ((r + 1) * (pixelSize + gap));
+        masterCoords[r] = { x: masterXStart, y };
+    }
+
     // Peak Hold State
     const dropRate = 0.005; // Drop rate per ms (in normalized 0-1 units)
     const holdTime = 500;   // ms to hold peak before dropping
@@ -127,6 +153,10 @@ export function Visualizer({ theme, isPlaying }: VisualizerProps) {
         
         if (values instanceof Float32Array || values instanceof Uint8Array) {
           const binCount = values.length;
+          
+          // Optimization: Single Path for batch drawing inactive/active cells?
+          // For now, simple rects are fast enough if logic is minimal.
+          
           for (let c = 0; c < cols; c++) {
             // Logarithmic x-axis
             const minBin = 1;
@@ -156,21 +186,18 @@ export function Visualizer({ theme, isPlaying }: VisualizerProps) {
             const peakPixel = Math.min(rows - 1, Math.floor(peak.val * rows));
 
             for (let r = 0; r < rows; r++) {
-              const y = height - ((r + 1) * (pixelSize + gap));
-              const x = gap + c * (pixelSize + gap);
+              const { x, y } = gridCoords[c][r];
               
               if (r < litPixels) {
-                const color = getPixelColor(r, false);
+                const color = rowColorCache[r];
                 ctx.fillStyle = color;
                 ctx.shadowColor = color;
                 ctx.shadowBlur = 1;
               } else if (r === peakPixel && peak.val > 0.05) {
                  // Peak Indicator
-                 ctx.fillStyle = getPixelColor(r, false); // Match the color of that height
-                 ctx.shadowColor = ctx.fillStyle;
-                 ctx.shadowBlur = 0;
-                 // Make it slightly lighter/white for visibility
                  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                 ctx.shadowColor = rowColorCache[r];
+                 ctx.shadowBlur = 0;
               } else {
                 ctx.fillStyle = inactiveColor;
                 ctx.shadowBlur = 0;
@@ -188,8 +215,7 @@ export function Visualizer({ theme, isPlaying }: VisualizerProps) {
          // If OFF, draw inactive grid for consistent aesthetics
          for (let c = 0; c < cols; c++) {
             for (let r = 0; r < rows; r++) {
-              const y = height - ((r + 1) * (pixelSize + gap));
-              const x = gap + c * (pixelSize + gap);
+              const { x, y } = gridCoords[c][r];
               ctx.fillStyle = inactiveColor;
               ctx.fillRect(x, y, pixelSize, pixelSize);
             }

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:wasm": "cd src/audio/wasm-dsp && wasm-pack build --target web --out-dir pkg",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -26,6 +27,7 @@
     "globals": "^16.5.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
-    "vite": "^7.2.4"
+    "vite": "^7.2.4",
+    "vite-plugin-cross-origin-isolation": "^0.1.6"
   }
 }

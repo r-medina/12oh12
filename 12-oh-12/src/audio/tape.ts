@@ -7,9 +7,16 @@ import * as Tone from 'tone';
  * 2. Subtle Saturation (Distortion)
  * 3. Warmth Filter (Lowpass)
  */
+// Use static URL for the processor in public folder.
+// Bypasses Vite bundling issues for AudioWorklet + WASM.
+// Add timestamp to burst cache
+const tapeProcessorUrl = '/tape-processor.js?t=' + Date.now();
+
 export class TapeChain {
   public input: Tone.Gain;
   public output: Tone.Gain;
+  
+  private isBypassed: boolean = false;
 
   private compressor: Tone.Compressor;
   private distortion: Tone.Distortion;
@@ -47,9 +54,70 @@ export class TapeChain {
     });
 
     // Connect the chain
-    // input -> distortion -> compressor -> filter -> output
-    // (Order is subjective, but saturation -> compression is common for "tape" simulation where tape saturates then limits)
-    this.input.chain(this.distortion, this.compressor, this.filter, this.output);
+    // Default: input -> output (dry) until WASM loads or if bypassed
+    this.input.connect(this.output);
+  }
+
+  public async init() {
+    if (this.isBypassed) return;
+
+    try {
+        console.log('Initializing WASM Tape Processor...');
+        
+        // Fetch the WASM binary on the main thread
+        const wasmResponse = await fetch('/wasm-dsp/wasm_dsp_bg.wasm');
+        const wasmBytes = await wasmResponse.arrayBuffer();
+        
+        console.log('WASM binary loaded, size:', wasmBytes.byteLength);
+        
+        // Load the AudioWorklet processor
+        await Tone.getContext().rawContext.audioWorklet.addModule(tapeProcessorUrl);
+        
+        // Create the AudioWorkletNode
+        const wasmNode = new AudioWorkletNode(
+            Tone.getContext().rawContext,
+            'tape-processor'
+        );
+        
+        // Send the WASM bytes to the worklet for initialization
+        wasmNode.port.postMessage({
+            type: 'init-wasm',
+            wasmBytes: wasmBytes
+        }, [wasmBytes]); // Transfer ownership for zero-copy
+        
+        // Wait for WASM to be ready in the worklet
+        await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new Error('WASM init timeout'));
+            }, 5000);
+            
+            wasmNode.port.onmessage = (event) => {
+                if (event.data.type === 'ready') {
+                    clearTimeout(timeout);
+                    console.log('WASM Tape Processor ready');
+                    resolve();
+                } else if (event.data.type === 'error') {
+                    clearTimeout(timeout);
+                    reject(new Error(event.data.error));
+                }
+            };
+        });
+        
+        // Connect: input -> WASM -> output
+        // Tone.js nodes can connect to native Web Audio nodes directly
+        this.input.disconnect();
+        this.input.connect(wasmNode as any);
+        (wasmNode as any).connect(this.output);
+        
+        console.log('Tape Processor Loaded (WASM mode)');
+    } catch (e) {
+        console.warn('Failed to load WASM Tape Processor, falling back to Tone.js:', e);
+        
+        // Fallback to Tone.js effects chain
+        this.input.disconnect();
+        this.input.chain(this.distortion, this.compressor, this.filter, this.output);
+        console.log('Tape Processor Loaded (Tone.js fallback mode)');
+    }
   }
 
   // Method to bypass if needed

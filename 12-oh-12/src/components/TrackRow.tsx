@@ -1,8 +1,7 @@
-
 import React from 'react';
 import type { Instrument } from '../types';
-import { Knob } from './Knob';
-import { ScrollableSlider } from './ScrollableSlider';
+import { TrackHeader } from './TrackHeader';
+import { TrackControls } from './TrackControls';
 
 interface TrackRowProps {
   label: string;
@@ -52,18 +51,15 @@ export const TrackRow = React.memo<TrackRowProps>(({
       {/* Left Section: Header + Steps (stacked vertically) */}
       <div className="track-left-section">
         {/* Header Row: Label, M/S, Params */}
-        <div className="track-header">
-          <div className="track-identity">
-            <div className="track-label">{label}</div>
-            <div className="mute-solo-group">
-              <button className={`ms-btn ${mute ? 'active' : ''}`} onClick={() => onMute(instrument)}>M</button>
-              <button className={`ms-btn ${solo ? 'active' : ''}`} onClick={() => onSolo(instrument)}>S</button>
-            </div>
-          </div>
-          <div className="track-params">
-            {extraControls}
-          </div>
-        </div>
+        <TrackHeader
+            label={label}
+            instrument={instrument}
+            mute={mute}
+            solo={solo}
+            onMute={onMute}
+            onSolo={onSolo}
+            extraControls={extraControls}
+        />
 
         {/* Steps Grid */}
         <div className="track-grid-row">
@@ -72,35 +68,17 @@ export const TrackRow = React.memo<TrackRowProps>(({
       </div>
 
       {/* Right Section: Gain + EQ/Sends (full height) */}
-      <div className="track-right-section">
-        {/* Gain Slider - Full height */}
-        <div className="track-gain-column">
-          <ScrollableSlider 
-            className="vertical-slider gain-slider"
-            min={-60}
-            max={0}
-            step={1}
-            value={volume} 
-            onChange={e => onVolumeChange(instrument, Number(e.target.value))} 
-          />
-          <label className="gain-label">Vol {volume}</label>
-        </div>
-
-        {/* EQ above Sends */}
-        <div className="track-eq-sends-column">
-          {/* EQ - Top */}
-          <div className="eq-row">
-            <Knob label="Lo" min={-12} max={12} value={eq.low} onChange={v => onEQChange(instrument, 'low', v)} onDoubleClick={() => onEQChange(instrument, 'low', 0)} size={28} />
-            <Knob label="Mid" min={-12} max={12} value={eq.mid} onChange={v => onEQChange(instrument, 'mid', v)} onDoubleClick={() => onEQChange(instrument, 'mid', 0)} size={28} />
-            <Knob label="Hi" min={-12} max={12} value={eq.high} onChange={v => onEQChange(instrument, 'high', v)} onDoubleClick={() => onEQChange(instrument, 'high', 0)} size={28} />
-          </div>
-          {/* Sends - Bottom, centered */}
-          <div className="sends-row">
-            <Knob label="REV" min={-60} max={0} value={reverbSend} onChange={v => onReverbSendChange(instrument, v)} onDoubleClick={() => onReverbSendChange(instrument, -60)} size={32} />
-            <Knob label="DLY" min={-60} max={0} value={delaySend} onChange={v => onDelaySendChange(instrument, v)} onDoubleClick={() => onDelaySendChange(instrument, -60)} size={32} />
-          </div>
-        </div>
-      </div>
+      <TrackControls
+        instrument={instrument}
+        volume={volume}
+        reverbSend={reverbSend}
+        delaySend={delaySend}
+        eq={eq}
+        onVolumeChange={onVolumeChange}
+        onReverbSendChange={onReverbSendChange}
+        onDelaySendChange={onDelaySendChange}
+        onEQChange={onEQChange}
+      />
     </div>
   );
 });

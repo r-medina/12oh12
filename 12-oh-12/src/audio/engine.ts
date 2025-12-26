@@ -432,7 +432,19 @@ const loop = new Tone.Sequence(
 
 export const AudioEngine = {
   init: async () => {
+    // Force native AudioContext to ensure compatibility with native AudioWorkletNode
+    // This avoids Tone.js / standardized-audio-context wrappers causing type mismatches
+    let nativeCtx: BaseAudioContext | undefined;
+    if (!Tone.context || !(Tone.context.rawContext instanceof BaseAudioContext)) {
+        nativeCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        Tone.setContext(nativeCtx);
+    } else {
+        nativeCtx = Tone.context.rawContext as BaseAudioContext;
+    }
+
     await Tone.start();
+    // Initialize WASM Tape Chain
+    await tapeChain.init(nativeCtx);
     console.log('Audio Context Started');
   },
 
