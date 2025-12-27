@@ -8,7 +8,7 @@ interface ProModeControlsProps {
 
 export const ProModeControls: React.FC<ProModeControlsProps> = ({ params, onParamChange }) => {
   const DELAY_TIME_OPTIONS = ["16n", "16n.", "8n", "8n.", "4n", "4n."];
-  const INSTRUMENTS: Instrument[] = ['kick', 'snare', 'hihat', 'clap', 'bass', 'pad'];
+  const INSTRUMENTS: Instrument[] = ['kick', 'snare', 'hihat', 'clap', 'bass', 'pad', 'poly'];
 
   return (
     <div className="pro-mode-panel">

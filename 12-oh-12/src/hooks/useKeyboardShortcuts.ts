@@ -53,9 +53,10 @@ export const useKeyboardShortcuts = (handlers: ShortcutHandlers, enabled: boolea
         return;
       }
 
-      // 1-6: Solo (or Mute with Shift)
-      if (e.code >= 'Digit1' && e.code <= 'Digit6') {
-        const index = parseInt(e.code.replace('Digit', '')) - 1;
+      // 0-9: Solo (or Mute with Shift)
+      if ((e.code >= 'Digit1' && e.code <= 'Digit9') || e.code === 'Digit0') {
+        const char = e.code.replace('Digit', '');
+        const index = char === '0' ? 9 : parseInt(char) - 1;
         e.preventDefault();
         
         if (e.shiftKey) {

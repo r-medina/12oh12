@@ -814,7 +814,7 @@ function App() {
   }, []);
 
   // Keyboard shortcuts
-  const instruments: Instrument[] = ['kick', 'snare', 'hihat', 'clap', 'bass', 'pad'];
+  const instruments: Instrument[] = ['kick', 'snare', 'hihat', 'clap', 'bass', 'pad', 'poly'];
 
   useKeyboardShortcuts({
     onPlayPause: handleStart,
