@@ -3,6 +3,52 @@ import type { Scene, Instrument, InstrumentParams } from '../types';
 const STORAGE_KEY = 'drum-machine-scenes';
 const AUTO_SAVE_KEY = 'drum-machine-autosave';
 
+const PRO_PARAMS_KEY = 'drum-machine-pro-params';
+
+export const DEFAULT_PRO_MODE_PARAMS: import('../types').ProModeParams = {
+  masterVolume: 0,
+  masterCompressor: {
+    bypass: false,
+    threshold: -20,
+    ratio: 2,
+    attack: 0.05,
+    release: 0.2
+  },
+  tapeChain: {
+    bypass: false,
+    compThreshold: -20,
+    compRatio: 2,
+    compAttack: 0.01,
+    compRelease: 0.2,
+    distortion: 0.05,
+    filterCutoff: 18000
+  },
+  reverb: {
+    bypass: false,
+    decay: 4.0,
+    preDelay: 0.05,
+    toneFilter: 600,
+    preFilter: 150,
+    postFilter: 95
+  },
+  delay: {
+    bypass: false,
+    time: "8n.",
+    feedback: 0.4,
+    preFilter: 150,
+    postFilter: 95
+  },
+  trackEnabled: {
+    kick: true,
+    snare: true,
+    hihat: true,
+    clap: true,
+    bass: true,
+    pad: true,
+    poly: true
+  }
+};
+
 /**
  * Create a single empty scene
  */
@@ -39,50 +85,6 @@ export const createEmptyScene = (name: string): Scene => {
     poly: { attack: 0.1, decay: 0.2, sustain: 0.5, release: 1.0, filter: 2000, detune: 0, oscillator: 'square' }
   };
 
-  const defaultProModeParams = {
-    masterVolume: 0,
-    masterCompressor: {
-      bypass: false,
-      threshold: -20,
-      ratio: 2,
-      attack: 0.05,
-      release: 0.2
-    },
-    tapeChain: {
-      bypass: false,
-      compThreshold: -20,
-      compRatio: 2,
-      compAttack: 0.01,
-      compRelease: 0.2,
-      distortion: 0.05,
-      filterCutoff: 18000
-    },
-    reverb: {
-      bypass: false,
-      decay: 4.0,
-      preDelay: 0.05,
-      toneFilter: 600,
-      preFilter: 150,
-      postFilter: 95
-    },
-    delay: {
-      bypass: false,
-      time: "8n.",
-      feedback: 0.4,
-      preFilter: 150,
-      postFilter: 95
-    },
-    trackEnabled: {
-      kick: true,
-      snare: true,
-      hihat: true,
-      clap: true,
-      bass: true,
-      pad: true,
-      poly: true
-    }
-  };
-  
   return {
     name,
     grid: emptyGrid,
@@ -99,8 +101,7 @@ export const createEmptyScene = (name: string): Scene => {
     mutes: emptyMutes,
     solos: emptySolos,
     bpm: 120,
-    swing: 0,
-    proModeParams: defaultProModeParams
+    swing: 0
   };
 };
 
@@ -133,15 +134,6 @@ const migrateScene = (scene: any): Scene => {
     padPitches: scene.padPitches || defaultScene.padPitches,
     padVoicings: scene.padVoicings || defaultScene.padVoicings,
     polyNotes: scene.polyNotes || defaultScene.polyNotes,
-    proModeParams: scene.proModeParams ? {
-      ...defaultScene.proModeParams!,
-      ...scene.proModeParams,
-      masterCompressor: { ...defaultScene.proModeParams!.masterCompressor, ...(scene.proModeParams.masterCompressor || {}) },
-      tapeChain: { ...defaultScene.proModeParams!.tapeChain, ...(scene.proModeParams.tapeChain || {}) },
-      reverb: { ...defaultScene.proModeParams!.reverb, ...(scene.proModeParams.reverb || {}) },
-      delay: { ...defaultScene.proModeParams!.delay, ...(scene.proModeParams.delay || {}) },
-      trackEnabled: { ...defaultScene.proModeParams!.trackEnabled, ...(scene.proModeParams.trackEnabled || scene.proModeParams.trackVisibility || {}) }
-    } : defaultScene.proModeParams
   };
 };
 
@@ -255,11 +247,12 @@ export const downloadScene = (scene: Scene): void => {
 /**
  * Export all scenes as a project file JSON string
  */
-export const exportProject = (scenes: Scene[]): string => {
+export const exportProject = (scenes: Scene[], proModeParams?: import('../types').ProModeParams): string => {
   const project: import('../types').ProjectFile = {
     version: 1,
     timestamp: Date.now(),
-    scenes
+    scenes,
+    proModeParams
   };
   return JSON.stringify(project, null, 2);
 };
@@ -267,8 +260,8 @@ export const exportProject = (scenes: Scene[]): string => {
 /**
  * Download all scenes as a project file
  */
-export const downloadProject = (scenes: Scene[]): void => {
-  const json = exportProject(scenes);
+export const downloadProject = (scenes: Scene[], proModeParams?: import('../types').ProModeParams): void => {
+  const json = exportProject(scenes, proModeParams);
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   
@@ -302,11 +295,50 @@ export const parseProjectFile = (jsonString: string): import('../types').Project
       return {
         version: parsed.version,
         timestamp: parsed.timestamp || Date.now(),
-        scenes: parsed.scenes.map((s: any) => migrateScene(s))
+        scenes: parsed.scenes.map((s: any) => migrateScene(s)),
+        proModeParams: parsed.proModeParams
       };
     }
     return null;
   } catch {
     return null;
+  }
+};
+
+/**
+ * Save pro mode params to localStorage
+ */
+export const saveProModeParams = (params: import('../types').ProModeParams): void => {
+  try {
+    const data = JSON.stringify(params);
+    localStorage.setItem(PRO_PARAMS_KEY, data);
+  } catch (error) {
+    console.error('Failed to save pro params:', error);
+  }
+};
+
+/**
+ * Load pro mode params from localStorage
+ */
+export const loadProModeParams = (): import('../types').ProModeParams => {
+  try {
+    const data = localStorage.getItem(PRO_PARAMS_KEY);
+    if (!data) return DEFAULT_PRO_MODE_PARAMS;
+    
+    const parsed = JSON.parse(data);
+    
+    // Migrate/Merge with defaults
+    return {
+      ...DEFAULT_PRO_MODE_PARAMS,
+      ...parsed,
+      masterCompressor: { ...DEFAULT_PRO_MODE_PARAMS.masterCompressor, ...(parsed.masterCompressor || {}) },
+      tapeChain: { ...DEFAULT_PRO_MODE_PARAMS.tapeChain, ...(parsed.tapeChain || {}) },
+      reverb: { ...DEFAULT_PRO_MODE_PARAMS.reverb, ...(parsed.reverb || {}) },
+      delay: { ...DEFAULT_PRO_MODE_PARAMS.delay, ...(parsed.delay || {}) },
+      trackEnabled: { ...DEFAULT_PRO_MODE_PARAMS.trackEnabled, ...(parsed.trackEnabled || parsed.trackVisibility || {}) }
+    };
+  } catch (error) {
+    console.error('Failed to load pro params:', error);
+    return DEFAULT_PRO_MODE_PARAMS;
   }
 };

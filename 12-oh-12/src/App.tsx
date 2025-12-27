@@ -11,7 +11,7 @@ import { Step } from './components/Step';
 import { ScrollableSelect } from './components/ScrollableSelect';
 import { PianoRoll } from './components/PianoRoll';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { loadScenes, saveScenes, createEmptyScene, downloadScene, importScene, downloadProject, parseProjectFile } from './utils/storage';
+import { loadScenes, saveScenes, createEmptyScene, downloadScene, importScene, downloadProject, parseProjectFile, loadProModeParams, saveProModeParams } from './utils/storage';
 import { ImportSelectionModal } from './components/ImportSelectionModal';
 import type { Instrument, Scene, InstrumentParams, ProModeParams, ProjectFile } from './types';
 
@@ -71,50 +71,6 @@ const INITIAL_PARAMS: InstrumentParams = {
   poly: { attack: 0.1, decay: 0.2, sustain: 0.5, release: 1.0, filter: 2000, detune: 0, oscillator: 'square' }
 };
 
-const INITIAL_PRO_MODE_PARAMS: ProModeParams = {
-  masterVolume: 0,
-  masterCompressor: {
-    bypass: false,
-    threshold: -20,
-    ratio: 2,
-    attack: 0.05,
-    release: 0.2
-  },
-  tapeChain: {
-    bypass: false,
-    compThreshold: -20,
-    compRatio: 2,
-    compAttack: 0.01,
-    compRelease: 0.2,
-    distortion: 0.05,
-    filterCutoff: 18000
-  },
-  reverb: {
-    bypass: false,
-    decay: 4.0,
-    preDelay: 0.05,
-    toneFilter: 600,
-    preFilter: 150,
-    postFilter: 95
-  },
-  delay: {
-    bypass: false,
-    time: "8n.",
-    feedback: 0.4,
-    preFilter: 150,
-    postFilter: 95
-  },
-  trackEnabled: {
-    kick: true,
-    snare: true,
-    hihat: true,
-    clap: true,
-    bass: true,
-    pad: true,
-    poly: true
-  }
-};
-
 function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpm] = useState(120);
@@ -139,7 +95,7 @@ function App() {
   });
   const [params, setParams] = useState<InstrumentParams>(INITIAL_PARAMS);
   const [proMode, setProMode] = useState(false);
-  const [proModeParams, setProModeParams] = useState<ProModeParams>(INITIAL_PRO_MODE_PARAMS);
+  const [proModeParams, setProModeParams] = useState<ProModeParams>(() => loadProModeParams());
 
   /* Per-step Bass Pitches (MIDI notes) */
   const [bassPitches, setBassPitches] = useState<number[]>(new Array(16).fill(36)); // Default C2 (36)
@@ -563,7 +519,6 @@ function App() {
       solos,
       bpm,
       swing,
-      proModeParams
     };
 
     // Only save if the current state is different from what's in the scenes array
@@ -577,7 +532,12 @@ function App() {
       setScenes(newScenes);
       saveScenes(newScenes);
     }
-  }, [activeSceneIndex, grid, bassPitches, padPitches, padVoicings, polyNotes, volumes, velocities, reverbSends, delaySends, eqGains, params, mutes, solos, bpm, swing, proModeParams]);
+  }, [activeSceneIndex, grid, bassPitches, padPitches, padVoicings, polyNotes, volumes, velocities, reverbSends, delaySends, eqGains, params, mutes, solos, bpm, swing]);
+
+  // Persist pro mode params globally
+  useEffect(() => {
+    saveProModeParams(proModeParams);
+  }, [proModeParams]);
 
   // Scene Management Handlers
   const loadSceneState = useCallback((scene: Scene) => {
@@ -604,9 +564,7 @@ function App() {
     })();
     setVelocities(safeVelocities);
 
-    // Load pro mode params or use defaults
-    const safeProModeParams = scene.proModeParams || INITIAL_PRO_MODE_PARAMS;
-    setProModeParams(safeProModeParams);
+
 
     // Sync to audio engine
     AudioEngine.setBpm(scene.bpm);
@@ -664,39 +622,7 @@ function App() {
     
     AudioEngine.setKickDistortion(p.kick.distortion || 0);
 
-    // Sync pro mode params to AudioEngine
-    AudioEngine.setMasterVolume(safeProModeParams.masterVolume);
-    AudioEngine.setMasterCompressorThreshold(safeProModeParams.masterCompressor.threshold);
-    AudioEngine.setMasterCompressorRatio(safeProModeParams.masterCompressor.ratio);
-    AudioEngine.setMasterCompressorAttack(safeProModeParams.masterCompressor.attack);
-    AudioEngine.setMasterCompressorRelease(safeProModeParams.masterCompressor.release);
-    
-    AudioEngine.setTapeBypass(safeProModeParams.tapeChain.bypass);
-    AudioEngine.setTapeCompressorThreshold(safeProModeParams.tapeChain.compThreshold);
-    AudioEngine.setTapeCompressorRatio(safeProModeParams.tapeChain.compRatio);
-    AudioEngine.setTapeCompressorAttack(safeProModeParams.tapeChain.compAttack);
-    AudioEngine.setTapeCompressorRelease(safeProModeParams.tapeChain.compRelease);
-    AudioEngine.setTapeDistortion(safeProModeParams.tapeChain.distortion);
-    AudioEngine.setTapeFilterCutoff(safeProModeParams.tapeChain.filterCutoff);
-    
-    AudioEngine.setMasterCompressorBypass(safeProModeParams.masterCompressor.bypass);
-    AudioEngine.setReverbBypass(safeProModeParams.reverb.bypass);
-    AudioEngine.setReverbDecay(safeProModeParams.reverb.decay);
-    AudioEngine.setReverbPreDelay(safeProModeParams.reverb.preDelay);
-    AudioEngine.setReverbToneFilter(safeProModeParams.reverb.toneFilter);
-    AudioEngine.setReverbPreFilter(safeProModeParams.reverb.preFilter);
-    AudioEngine.setReverbPostFilter(safeProModeParams.reverb.postFilter);
-    
-    AudioEngine.setDelayBypass(safeProModeParams.delay.bypass);
-    AudioEngine.setDelayTime(safeProModeParams.delay.time);
-    AudioEngine.setDelayFeedback(safeProModeParams.delay.feedback);
-    AudioEngine.setDelayPreFilter(safeProModeParams.delay.preFilter);
-    AudioEngine.setDelayPostFilter(safeProModeParams.delay.postFilter);
 
-    // Sync track enablement
-    Object.entries(safeProModeParams.trackEnabled).forEach(([inst, enabled]) => {
-      AudioEngine.setTrackEnabled(inst as Instrument, enabled);
-    });
   }, []);
 
   const handleSceneSelect = useCallback((index: number) => {
@@ -744,8 +670,8 @@ function App() {
   }, [scenes, activeSceneIndex]);
 
   const handleExportAll = useCallback(() => {
-    downloadProject(scenes);
-  }, [scenes]);
+    downloadProject(scenes, proModeParams);
+  }, [scenes, proModeParams]);
 
   const handleRandomizeActiveScene = useCallback(() => {
     const instruments: Instrument[] = ['kick', 'snare', 'hihat', 'clap', 'bass', 'pad'];
@@ -818,18 +744,60 @@ function App() {
     input.click();
   }, [scenes, activeSceneIndex, loadSceneState]);
 
-  const handleConfirmImport = useCallback((selectedIndices: number[]) => {
+  const handleConfirmImport = useCallback((selectedIndices: number[], importProSettings: boolean) => {
     if (!pendingImport) return;
     
+    // Import scenes
     const newScenes = [...scenes];
     selectedIndices.forEach(idx => {
       if (idx < pendingImport.scenes.length) {
         newScenes[idx] = pendingImport.scenes[idx];
       }
     });
-    
     setScenes(newScenes);
     saveScenes(newScenes);
+
+    // Import Pro Settings if requested
+    if (importProSettings && pendingImport.proModeParams) {
+      const newProParams = pendingImport.proModeParams;
+      setProModeParams(newProParams);
+      saveProModeParams(newProParams);
+
+      // Sync to AudioEngine
+      AudioEngine.setMasterVolume(newProParams.masterVolume);
+      AudioEngine.setMasterCompressorThreshold(newProParams.masterCompressor.threshold);
+      AudioEngine.setMasterCompressorRatio(newProParams.masterCompressor.ratio);
+      AudioEngine.setMasterCompressorAttack(newProParams.masterCompressor.attack);
+      AudioEngine.setMasterCompressorRelease(newProParams.masterCompressor.release);
+      AudioEngine.setMasterCompressorBypass(newProParams.masterCompressor.bypass);
+      
+      AudioEngine.setTapeBypass(newProParams.tapeChain.bypass);
+      AudioEngine.setTapeCompressorThreshold(newProParams.tapeChain.compThreshold);
+      AudioEngine.setTapeCompressorRatio(newProParams.tapeChain.compRatio);
+      AudioEngine.setTapeCompressorAttack(newProParams.tapeChain.compAttack);
+      AudioEngine.setTapeCompressorRelease(newProParams.tapeChain.compRelease);
+      AudioEngine.setTapeDistortion(newProParams.tapeChain.distortion);
+      AudioEngine.setTapeFilterCutoff(newProParams.tapeChain.filterCutoff);
+      
+      AudioEngine.setReverbBypass(newProParams.reverb.bypass);
+      AudioEngine.setReverbDecay(newProParams.reverb.decay);
+      AudioEngine.setReverbPreDelay(newProParams.reverb.preDelay);
+      AudioEngine.setReverbToneFilter(newProParams.reverb.toneFilter);
+      AudioEngine.setReverbPreFilter(newProParams.reverb.preFilter);
+      AudioEngine.setReverbPostFilter(newProParams.reverb.postFilter);
+      
+      AudioEngine.setDelayBypass(newProParams.delay.bypass);
+      AudioEngine.setDelayTime(newProParams.delay.time);
+      AudioEngine.setDelayFeedback(newProParams.delay.feedback);
+      AudioEngine.setDelayPreFilter(newProParams.delay.preFilter);
+      AudioEngine.setDelayPostFilter(newProParams.delay.postFilter);
+
+      if (newProParams.trackEnabled) {
+          Object.entries(newProParams.trackEnabled).forEach(([inst, enabled]) => {
+            AudioEngine.setTrackEnabled(inst as Instrument, enabled);
+          });
+      }
+    }
     
     // If active scene was imported, reload it
     if (selectedIndices.includes(activeSceneIndex)) {

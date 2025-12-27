@@ -104,7 +104,6 @@ export interface Scene {
   solos: Record<Instrument, boolean>;
   bpm: number;
   swing: number;
-  proModeParams?: ProModeParams;
 }
 
 
@@ -120,4 +119,5 @@ export interface ProjectFile {
   version: number;
   timestamp: number;
   scenes: Scene[];
+  proModeParams?: ProModeParams;
 }

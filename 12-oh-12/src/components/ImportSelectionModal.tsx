@@ -4,7 +4,7 @@ import type { ProjectFile, Scene } from '../types';
 interface ImportSelectionModalProps {
   projectFile: ProjectFile;
   currentScenes: Scene[];
-  onConfirm: (selectedIndices: number[]) => void;
+  onConfirm: (selectedIndices: number[], importProSettings: boolean) => void;
   onCancel: () => void;
 }
 
@@ -17,6 +17,7 @@ export const ImportSelectionModal: React.FC<ImportSelectionModalProps> = ({
   const [selected, setSelected] = useState<boolean[]>(
     new Array(projectFile.scenes.length).fill(true)
   );
+  const [importProSettings, setImportProSettings] = useState(!!projectFile.proModeParams);
 
   const toggleSelection = (index: number) => {
     setSelected(prev => {
@@ -33,7 +34,7 @@ export const ImportSelectionModal: React.FC<ImportSelectionModalProps> = ({
     const indices = selected
       .map((isSelected, idx) => (isSelected ? idx : -1))
       .filter(idx => idx !== -1);
-    onConfirm(indices);
+    onConfirm(indices, importProSettings);
   };
 
   const formatDate = (timestamp: number) => {
@@ -49,6 +50,22 @@ export const ImportSelectionModal: React.FC<ImportSelectionModalProps> = ({
         <p className="import-modal-info">
           Project saved on: {formatDate(projectFile.timestamp)}
         </p>
+
+        {projectFile.proModeParams && (
+          <div className="scene-checkbox-list" style={{ marginBottom: '12px' }}>
+            <label className="scene-checkbox-item">
+              <input 
+                type="checkbox" 
+                checked={importProSettings}
+                onChange={e => setImportProSettings(e.target.checked)}
+              />
+              <span className="scene-slot">PRO</span>
+              <span className="scene-names">
+                <span className="scene-from">Global Settings (Master/Tape/Reverb)</span>
+              </span>
+            </label>
+          </div>
+        )}
 
         <div className="import-modal-actions-top">
           <button onClick={selectAll}>Select All</button>
@@ -86,7 +103,7 @@ export const ImportSelectionModal: React.FC<ImportSelectionModalProps> = ({
           <button
             className="btn-primary"
             onClick={handleConfirm}
-            disabled={!anySelected}
+            disabled={!anySelected && !importProSettings}
           >
             Import Selected ({selected.filter(Boolean).length})
           </button>
